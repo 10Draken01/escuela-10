@@ -8,15 +8,11 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 
 @Entity
-@Table(
-        name = "CALIFICACIONES",
-        uniqueConstraints = {
-                @UniqueConstraint(name = "CALIFICACION_INSCRIPCION_UK", columnNames = "ID_INSCRIPCION")
-        }
-)
+@Table(name = "CALIFICACIONES")
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
@@ -28,23 +24,25 @@ public class Calificacion {
     private Long id;
 
     @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "ID_INSCRIPCION", nullable = false)
+    @JoinColumn(name = "ID_INSCRIPCION", nullable = false, unique = true)
     private Inscripcion inscripcion;
 
-    @Column(name = "CALIFICACION", nullable = false)
-    private Integer calificacion;
+    @Column(name = "CALIFICACION")
+    private BigDecimal calificacion;
 
     @Column(name = "FECHA_REGISTRO", nullable = false)
     private LocalDate fechaRegistro;
 
     private static void validarDatos(
-        Integer calificacion
+            BigDecimal calificacion
     ){
-        ValoresNumericosUtils.validarEnteroPositvo(calificacion, "La calificacion debe ser positiva");
-        if(calificacion > 10)
-            throw new DatoInvalidoException("La calificacion no debe ser mayor a 10");
+        if(
+            calificacion.compareTo(BigDecimal.TEN) > 0 ||
+            calificacion.compareTo(BigDecimal.ZERO) < 0
+        )
+            throw new DatoInvalidoException("La calificacion debe ser positiva y estar entre 0 y 10");
     }
-    public static Calificacion crear(Integer calificacion){
+    public static Calificacion crear(BigDecimal calificacion){
         validarDatos(calificacion);
         return Calificacion.builder()
                 .calificacion(calificacion)
