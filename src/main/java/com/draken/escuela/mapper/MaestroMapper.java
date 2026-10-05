@@ -29,18 +29,20 @@ public class MaestroMapper implements CommonMapper<MaestroRequest, MaestroRespon
     }
 
     @Override
-    public MaestroResponse entidadAResponse(Maestro entidad) {
-        return entidad == null ? null
-                : new MaestroResponse(
-                    entidad.getId(),
-                    String.join(" ",
-                            entidad.getNombre(),
-                            entidad.getApellidoPaterno(),
-                            entidad.getApellidoMaterno()
-                    ),
-                    entidad.getEmail(),
-                    entidad.getTelefono(),
-                    null
+    public MaestroResponse entidadAResponse(Maestro maestro) {
+        return maestro == null ? null
+            : new MaestroResponse(
+                maestro.getId(),
+                String.join(" ",
+                    maestro.getNombre(),
+                    maestro.getApellidoPaterno(),
+                    maestro.getApellidoMaterno()
+                ),
+                maestro.getEmail(),
+                maestro.getTelefono(),
+                maestro.getGrupos().stream()
+                        .map(Grupo::getCurso)
+                        .map(cursoMapper::entidadADatosCurso).toList()
         );
     }
 

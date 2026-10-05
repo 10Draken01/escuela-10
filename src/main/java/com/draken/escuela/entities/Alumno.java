@@ -1,5 +1,6 @@
 package com.draken.escuela.entities;
 
+import com.draken.escuela.exceptions.DatoInvalidoException;
 import com.draken.escuela.utils.StringCustomUtils;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -8,15 +9,11 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
-@Table(
-        name = "ALUMNOS",
-        uniqueConstraints = {
-                @UniqueConstraint(name = "ALUMNO_EMAIL_UK", columnNames = "EMAIL"),
-                @UniqueConstraint(name = "ALUMNO_MATRICULA_UK", columnNames = "MATRICULA")
-        }
-)
+@Table(name = "ALUMNOS")
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
@@ -36,14 +33,18 @@ public class Alumno {
     @Column(name = "APELLIDO_MATERNO", length = 50, nullable = false)
     private String apellidoMaterno;
 
-    @Column(name = "EMAIL", length = 100, nullable = false)
+    @Column(name = "EMAIL", length = 100, nullable = false, unique = true)
     private String email;
 
-    @Column(name = "MATRICULA", length = 10, nullable = false)
+    @Column(name = "MATRICULA", length = 10, nullable = false, unique = true)
     private String matricula;
 
     @Column(name = "FECHA_INGRESO", nullable = false)
     private LocalDate fechaIngreso;
+
+    @Builder.Default
+    @OneToMany(mappedBy = "alumno", fetch = FetchType.LAZY)
+    private List<Inscripcion> inscripciones = new ArrayList<>();
 
     private static void validarDatos(
             String nombre,
@@ -64,6 +65,12 @@ public class Alumno {
                 apellidoMaterno, 5, 50,
                 "El apellido materno es requerido y debe tener entre 5 y 50 caracteres"
         );
+    }
+
+    public void agregarInscripcion(Inscripcion inscripcion){
+        if (inscripcion == null)
+            throw new DatoInvalidoException("La inscripcion es requerida");
+        this.inscripciones.add(inscripcion);
     }
 
     public static Alumno crear(

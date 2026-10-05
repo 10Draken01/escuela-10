@@ -43,10 +43,17 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
     // 409: la base de datos rechazó el dato (unique, foreign key...)
     @ExceptionHandler(DataIntegrityViolationException.class)
-    public ProblemDetail handleIntegridad(DataIntegrityViolationException e) {
+    public ProblemDetail handleDataIntegrityViolation(DataIntegrityViolationException e) {
         log.warn("Integridad de datos: {}", e.getMostSpecificCause().getMessage());
         return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT,
                 "La operación viola una restricción de datos (duplicado o registro en uso).");
+    }
+
+    // 409: la base de datos rechazó el dato (unique, foreign key...)
+    @ExceptionHandler(EntidadRelacionadaException.class)
+    public ProblemDetail handleEntidadRelacionada(EntidadRelacionadaException e) {
+        log.warn("Entidad relacionada: {}", e.getMessage());
+        return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, e.getMessage());
     }
 
     // ---------- Validaciones (sobrescriben a la clase base) ----------

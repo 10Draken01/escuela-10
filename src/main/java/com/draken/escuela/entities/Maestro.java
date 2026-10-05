@@ -1,6 +1,8 @@
 package com.draken.escuela.entities;
 
+import com.draken.escuela.exceptions.DatoInvalidoException;
 import com.draken.escuela.utils.StringCustomUtils;
+import com.draken.escuela.utils.ValoresNumericosUtils;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -77,6 +79,8 @@ public class Maestro {
                 telefono, 10, 10,
                 "El teléfono es requerido y debe tener exactamente 10 caracteres"
         );
+
+        ValoresNumericosUtils.validarStringSoloNumeros(telefono, "El telefono es invalido");
     }
 
     public void actualizar(
@@ -93,6 +97,15 @@ public class Maestro {
         this.apellidoMaterno = apellidoMaterno.trim();
         this.email = email.trim().toLowerCase();
         this.telefono = telefono.trim();
+    }
+
+    public void asignarGrupo(Grupo grupo){
+        if (grupo == null)
+            throw new DatoInvalidoException("El grupo es requerido");
+
+        grupo.asignarMaestro(this);
+
+        this.grupos.add(grupo);
     }
 
     public static Maestro crear(

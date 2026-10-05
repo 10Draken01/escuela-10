@@ -20,7 +20,7 @@ public class Curso {
     @Column(name = "ID_CURSO")
     private Long id;
 
-    @Column(name = "NOMBRE", length = 100, nullable = false)
+    @Column(name = "NOMBRE", length = 100, nullable = false, unique = true)
     private String nombre;
 
     @Column(name = "DESCRIPCION", length = 200, nullable = false)
@@ -31,17 +31,11 @@ public class Curso {
 
     private static void validarDatos(
             String nombre,
-            String descripcion,
             Integer creditos
     ){
         StringCustomUtils.validarTamanio(
                 nombre, 5, 100,
                 "El nombre es requerido y debe tener entre 5 y 100 caracteres"
-        );
-
-        StringCustomUtils.validarTamanio(
-                descripcion, 5, 200,
-                "La descripcion es requerida y debe tener entre 5 y 200 caracteres"
         );
 
         ValoresNumericosUtils.validarEnteroPositvo(
@@ -55,9 +49,10 @@ public class Curso {
         String descripcion,
         Integer creditos
     ){
+        validarDatos(nombre, creditos);
         return Curso.builder()
                 .nombre(nombre.trim())
-                .descripcion(descripcion.trim())
+                .descripcion(descripcion == null ? null : descripcion.trim())
                 .creditos(creditos)
                 .build();
     }

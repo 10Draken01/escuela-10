@@ -7,7 +7,7 @@ import lombok.RequiredArgsConstructor;
 
 @RequiredArgsConstructor
 @Getter
-public enum Dia {
+public enum DiaSemana {
     LUNES("Lunes"),
     MARTES("Martes"),
     MIERCOLES("Miercoles"),
@@ -16,19 +16,19 @@ public enum Dia {
     SABADO("Sabado");
     private final String description;
     
-    public static Dia obtenerDiaPorDescriptcion(String description){
+    public static DiaSemana obtenerDiaPorDescriptcion(String description){
         StringCustomUtils.validarNoVacioNoNull(description, "El horario es requerido");
         String descripcionNormalizada = StringCustomUtils.normalizarTexto(description);
 
-        for (Dia dia : values()){
+        for (DiaSemana diaSemana : values()){
             if(
                     StringCustomUtils
                             .normalizarTexto(
-                                    dia.getDescription()
+                                    diaSemana.getDescription()
                             )
                             .equals(descripcionNormalizada)
             )
-                return dia;
+                return diaSemana;
         }
 
         throw new DatoInvalidoException("No existe un dia con descripcion: " + description);
