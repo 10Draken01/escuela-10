@@ -1,0 +1,112 @@
+package com.draken.escuela.services.aula;
+
+import com.draken.escuela.dto.aula.AulaRequest;
+import com.draken.escuela.dto.aula.AulaResponse;
+import com.draken.escuela.entities.Aula;
+import com.draken.escuela.exceptions.ConflictoException;
+import com.draken.escuela.exceptions.DatoInvalidoException;
+import com.draken.escuela.mapper.AulaMapper;
+import com.draken.escuela.repositories.AulaRepository;
+import com.draken.escuela.utils.ServiceUtils;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+
+@Service
+@RequiredArgsConstructor
+@Transactional
+@Slf4j
+public class AulaServiceImpl implements AulaService{
+
+    private final AulaRepository aulaRepository;
+    private final AulaMapper aulaMapper;
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<AulaResponse> listar() {
+        log.info("Listando aulas");
+        return aulaRepository.findAll().stream()
+                .map(aulaMapper::entidadAResponse).toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public AulaResponse obtenerPorId(Long id) {
+        log.info("Obteniendo aula por id: {}", id);
+
+        return aulaMapper.entidadAResponse(obtenerAula(id));
+    }
+
+    @Override
+    public AulaResponse registrar(AulaRequest request) {
+        Aula aula = Aula.crear(
+                request.nombre(),
+                request.capacidad()
+        );
+
+        validarDatosUnicos(aula.getNombre());
+
+        aulaRepository.save(aula);
+
+        log.info("Aula registrada con id: {}", aula.getId());
+
+        return aulaMapper.entidadAResponse(aula);
+    }
+
+    @Override
+    public AulaResponse actualizar(AulaRequest request, Long id) {
+        Aula aula = obtenerAula(id);
+
+        Aula aulaConCambios = Aula.crear(
+                request.nombre(),
+                request.capacidad()
+        );
+
+        validarCambiosUnicos(aulaConCambios.getNombre(), id);
+
+        aula.actualizar(
+                aulaConCambios.getNombre(),
+                aulaConCambios.getCapacidad()
+        );
+
+        aulaRepository.save(aula);
+
+        log.info("Aula actualizada con id: {}", aula.getId());
+
+        return aulaMapper.entidadAResponse(aula);
+    }
+
+    @Override
+    public void eliminar(Long id) {
+        Aula aula = obtenerAula(id);
+
+        aulaRepository.delete(aula);
+
+        aulaRepository.flush();
+
+        log.info("Aula eliminada con id: {}", aula.getId());
+    }
+
+    private Aula obtenerAula(Long id){
+        return ServiceUtils.obtenerEntidadOException(
+                aulaRepository,
+                id,
+                Aula.class
+        );
+    }
+
+    private void validarDatosUnicos(String nombre){
+        if(aulaRepository.existsByNombre(nombre)){
+            throw new ConflictoException("El nombre del aula ya existe");
+        }
+    }
+
+    private void validarCambiosUnicos(String nombre, Long id){
+        if(aulaRepository.existsByNombreAndIdNot(nombre, id)){
+            throw new ConflictoException("Una aula con el mismo nombre ya existe");
+        }
+    }
+}

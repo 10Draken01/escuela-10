@@ -59,10 +59,10 @@ public class MaestroServiceImpl implements MaestroService{
                 request.telefono()
         );
 
-        validarDatosUnicos(maestro, null);
+        validarDatosUnicos(maestro.getEmail(), maestro.getTelefono());
 
         maestroRepository.save(maestro);
-        log.info("Maestro {} agregado con id: {}", maestro.getNombre(), maestro.getId());
+        log.info("Maestro agregado con id: {}", maestro.getId());
         return maestroMapper.entidadAResponse(maestro);
     }
 
@@ -70,9 +70,7 @@ public class MaestroServiceImpl implements MaestroService{
     public MaestroResponse actualizar(MaestroRequest request, Long id) {
         Maestro maestro = obterMaestro(id);
 
-        validarDatosUnicos(maestro, id);
-
-        maestro.actualizar(
+        Maestro maestroConCambios = Maestro.crear(
                 request.nombre(),
                 request.apellidoPaterno(),
                 request.apellidoMaterno(),
@@ -80,7 +78,15 @@ public class MaestroServiceImpl implements MaestroService{
                 request.telefono()
         );
 
-        validarCambiosUnicos(maestro);
+        validarCambiosUnicos(request.email(), request.telefono(), id);
+
+        maestro.actualizar(
+                maestroConCambios.getNombre(),
+                maestroConCambios.getApellidoPaterno(),
+                maestroConCambios.getApellidoMaterno(),
+                maestroConCambios.getEmail(),
+                maestroConCambios.getTelefono()
+        );
 
         maestroRepository.save(maestro);
 
@@ -122,19 +128,19 @@ public class MaestroServiceImpl implements MaestroService{
         );
     }
 
-    private void validarDatosUnicos(Maestro maestro, Long id){
-        if(maestroRepository.existsByEmailAndIdNot(maestro.getEmail(), id))
+    private void validarDatosUnicos(String email, String telefono){
+        if(maestroRepository.existsByEmail(email))
             throw new ConflictoException("Email ya existente");
 
-        if(maestroRepository.existsByTelefonoAndIdNot(maestro.getTelefono(), id))
+        if(maestroRepository.existsByTelefono(telefono))
             throw new ConflictoException("Telefono ya existente");
     }
 
-    private void validarCambiosUnicos(Maestro maestro){
-        if(maestroRepository.existsByEmail(maestro.getEmail()))
-            throw new ConflictoException("Email ya existente");
+    private void validarCambiosUnicos(String email, String telefono, Long id){
+        if(maestroRepository.existsByEmailAndIdNot(email, id))
+            throw new ConflictoException("Otro maestro ya tiene este email");
 
-        if(maestroRepository.existsByTelefono(maestro.getTelefono()))
-            throw new ConflictoException("Telefono ya existente");
+        if(maestroRepository.existsByTelefonoAndIdNot(telefono, id))
+            throw new ConflictoException("Otro maestro ya tiene este telefono");
     }
 }
