@@ -101,7 +101,7 @@ public class MaestroServiceImpl implements MaestroService{
 
         // Validar si el maestro tiene grupos asignados antes de eliminarlo
         if(grupoRepository.existsByMaestroId(id))
-            throw new EntidadRelacionadaException("No se puede eliminar si tiene grupos asignado");
+            throw new EntidadRelacionadaException("No se puede eliminar si tiene grupos asignados");
 
         maestroRepository.delete(maestro);
         maestroRepository.flush();

@@ -3,10 +3,11 @@ package com.draken.escuela.services.curso;
 import com.draken.escuela.dto.curso.CursoRequest;
 import com.draken.escuela.dto.curso.CursoResponse;
 import com.draken.escuela.entities.Curso;
-import com.draken.escuela.entities.Maestro;
 import com.draken.escuela.exceptions.ConflictoException;
+import com.draken.escuela.exceptions.EntidadRelacionadaException;
 import com.draken.escuela.mapper.CursoMapper;
 import com.draken.escuela.repositories.CursoRepository;
+import com.draken.escuela.repositories.GrupoRepository;
 import com.draken.escuela.utils.ServiceUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -23,6 +24,8 @@ public class CursoServiceImpl implements CursoService {
 
     private final CursoRepository cursoRepository;
     private final CursoMapper cursoMapper;
+
+    private final GrupoRepository grupoRepository;
 
     @Override
     @Transactional(readOnly = true)
@@ -86,6 +89,10 @@ public class CursoServiceImpl implements CursoService {
     @Override
     public void eliminar(Long id) {
         Curso curso = obtenerCurso(id);
+
+        // Validar si el curso tiene grupos asignados antes de eliminarlo
+        if(grupoRepository.existsByCursoId(id))
+            throw new EntidadRelacionadaException("No se puede eliminar si tiene grupos asignados");
 
         cursoRepository.delete(curso);
 

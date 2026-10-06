@@ -5,8 +5,10 @@ import com.draken.escuela.dto.aula.AulaResponse;
 import com.draken.escuela.entities.Aula;
 import com.draken.escuela.exceptions.ConflictoException;
 import com.draken.escuela.exceptions.DatoInvalidoException;
+import com.draken.escuela.exceptions.EntidadRelacionadaException;
 import com.draken.escuela.mapper.AulaMapper;
 import com.draken.escuela.repositories.AulaRepository;
+import com.draken.escuela.repositories.GrupoRepository;
 import com.draken.escuela.utils.ServiceUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -23,6 +25,8 @@ public class AulaServiceImpl implements AulaService{
 
     private final AulaRepository aulaRepository;
     private final AulaMapper aulaMapper;
+
+    private final GrupoRepository grupoRepository;
 
     @Override
     @Transactional(readOnly = true)
@@ -82,6 +86,10 @@ public class AulaServiceImpl implements AulaService{
     @Override
     public void eliminar(Long id) {
         Aula aula = obtenerAula(id);
+
+        // Validar si el aula tiene grupos asignados antes de eliminarlo
+        if(grupoRepository.existsByAulaId(id))
+            throw new EntidadRelacionadaException("No se puede eliminar si tiene grupos asignados");
 
         aulaRepository.delete(aula);
 
