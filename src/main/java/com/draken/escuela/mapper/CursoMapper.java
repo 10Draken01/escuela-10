@@ -12,15 +12,21 @@ public class CursoMapper implements CommonMapper<CursoRequest, CursoResponse, Cu
     public Curso requestAEntidad(CursoRequest request) {
         return request == null ? null
                 : Curso.crear(
-                "",
-                "",
-                1
+                request.nombre(),
+                request.descripcion(),
+                request.creditos()
         );
     }
 
     @Override
-    public CursoResponse entidadAResponse(Curso entidad) {
-        return null;
+    public CursoResponse entidadAResponse(Curso curso) {
+        return curso == null ? null
+                : new CursoResponse(
+                curso.getId(),
+                curso.getNombre(),
+                curso.getDescripcion(),
+                curso.getCreditos()
+        );
     }
 
     public DatosCurso entidadADatosCurso(Curso curso){

@@ -12,6 +12,8 @@ import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
+import jakarta.validation.ConstraintViolationException;
+
 import java.util.List;
 
 @RestControllerAdvice
@@ -88,6 +90,18 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
                 HttpStatus.BAD_REQUEST, "Uno o más parámetros no son válidos.");
         pd.setProperty("errores", errores);
         return handleExceptionInternal(e, pd, headers, status, request);
+    }
+
+    // 400: falló @Positive, @Min... en un @PathVariable/@RequestParam (AOP lanza ConstraintViolationException)
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ProblemDetail handleConstraintViolation(ConstraintViolationException e) {
+        log.warn("Parámetro inválido: {}", e.getMessage());
+        ProblemDetail pd = ProblemDetail.forStatusAndDetail(
+                HttpStatus.BAD_REQUEST, "Uno o más parámetros no son válidos.");
+        pd.setProperty("errores", e.getConstraintViolations().stream()
+                .map(v -> v.getPropertyPath() + ": " + v.getMessage())
+                .toList());
+        return pd;
     }
 
     // ---------- Red de seguridad ----------

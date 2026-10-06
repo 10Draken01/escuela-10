@@ -7,6 +7,7 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Positive;
 import lombok.AllArgsConstructor;
 import org.apache.coyote.Response;
 import org.springframework.http.HttpStatus;
@@ -58,7 +59,7 @@ public class CrudController<RQ, RS, S extends CrudService<RQ, RS>>{
             description = "Registro encontrado"
     )
     public ResponseEntity<RS> obtenerPorId(
-            @PathVariable Long id
+            @PathVariable @Positive(message = "El id debe ser positivo") Long id
     ) {
         return ResponseEntity.ok(service.obtenerPorId(id));
     }
@@ -70,7 +71,7 @@ public class CrudController<RQ, RS, S extends CrudService<RQ, RS>>{
             description = "Registro creado"
     )
     public ResponseEntity<RS> registrar(
-            @Valid RQ request
+            @Valid @RequestBody RQ request
     ) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(service.registrar(request));
@@ -83,8 +84,8 @@ public class CrudController<RQ, RS, S extends CrudService<RQ, RS>>{
             description = "Registro actualizado"
     )
     public ResponseEntity<RS> actualizar(
-            @PathVariable Long id,
-            @Valid RQ request
+            @PathVariable @Positive(message = "El id debe ser positivo") Long id,
+            @Valid @RequestBody RQ request
     ) {
         return ResponseEntity.ok(service.actualizar(request, id));
     }
@@ -96,7 +97,7 @@ public class CrudController<RQ, RS, S extends CrudService<RQ, RS>>{
             description = "Registro eliminado"
     )
     public ResponseEntity<Void> eliminar(
-            @PathVariable Long id
+            @PathVariable @Positive(message = "El id debe ser positivo") Long id
     ) {
         service.eliminar(id);
         return ResponseEntity.noContent().build();

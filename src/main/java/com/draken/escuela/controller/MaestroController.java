@@ -6,9 +6,7 @@ import com.draken.escuela.dto.maestro.MaestroResponse;
 import com.draken.escuela.services.maestro.MaestroService;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.validation.Valid;
 import jakarta.validation.constraints.Positive;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 

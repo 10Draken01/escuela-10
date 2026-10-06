@@ -18,4 +18,8 @@ public interface CursoRepository extends JpaRepository<Curso, Long> {
     List<Curso> obtenerCursosPorIdMaestro(
             @Param("idMaestro") Long idMaestro
     );
+
+    boolean existsByNombre(String nombre);
+
+    boolean existsByNombreAndIdNot(String nombre, Long id);
 }
