@@ -89,6 +89,16 @@ public class Grupo {
         this.inscripciones.add(inscripcion);
     }
 
+    public void asignarDatos(
+            Curso curso,
+            Maestro maestro,
+            Aula aula
+    ){
+        asignarCurso(curso);
+        asignarMaestro(maestro);
+        asignarAula(aula);
+    }
+
     public void quitarInscripcion(Inscripcion inscripcion) {
         if (inscripcion == null)
             throw new DatoInvalidoException("La inscripcion es requerida");
@@ -119,9 +129,7 @@ public class Grupo {
     ){
         validarDatos(periodo);
         this.periodo = periodo;
-        asignarCurso(curso);
-        asignarMaestro(maestro);
-        asignarAula(aula);
+        asignarDatos(curso, maestro, aula);
     }
 
     public static Grupo crear(

@@ -64,23 +64,24 @@ public class CursoServiceImpl implements CursoService {
 
         Curso curso = obtenerCurso(id);
 
-        Curso cursoConCambios = Curso.crear(
+        if (curso.cambiosEnDatos(
                 request.nombre(),
                 request.descripcion(),
                 request.creditos()
-        );
+        )) {
 
-        validarCambiosUnicos(cursoConCambios.getNombre(), id);
+            validarCambiosUnicos(request.nombre(), id);
 
-        curso.actualizar(
-                cursoConCambios.getNombre(),
-                cursoConCambios.getDescripcion(),
-                cursoConCambios.getCreditos()
-        );
+            curso.actualizar(
+                    request.nombre(),
+                    request.descripcion(),
+                    request.creditos()
+            );
 
-        cursoRepository.saveAndFlush(curso);
+            cursoRepository.saveAndFlush(curso);
 
-        log.info("Curso actualizado con id: {}", curso.getId());
+            log.info("Curso actualizado con id: {}", curso.getId());
+        }
 
         return cursoMapper.entidadAResponse(curso);
     }

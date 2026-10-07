@@ -55,6 +55,18 @@ public class Curso {
         this.creditos = creditos;
     }
 
+    public boolean cambiosEnDatos(
+            String nombre,
+            String descripcion,
+            Integer creditos
+    ){
+        validarDatos(nombre, creditos);
+        return !this.nombre.equals(nombre.trim()) ||
+                !this.descripcion.equals(descripcion == null ? null : descripcion.trim()) ||
+                !this.creditos.equals(creditos);
+
+    }
+
     public static Curso crear(
         String nombre,
         String descripcion,

@@ -147,20 +147,48 @@ class CursoServiceImplTest {
 
     @Test
     void actualizar_debeActualizarDatos_cuandoCursoExisteYNombreEstaLibre() {
-        when(cursoRepository.findById(1L)).thenReturn(Optional.of(curso));
-        when(cursoRepository.existsByNombreAndIdNot("Historia I", 1L)).thenReturn(false);
 
-        CursoRequest request = new CursoRequest("Historia I", "Historia universal", 8);
-        CursoResponse respuestaEsperada = new CursoResponse(1L, "Historia I", "Historia universal", 8);
-        when(cursoMapper.entidadAResponse(curso)).thenReturn(respuestaEsperada);
+        when(cursoRepository.findById(1L))
+                .thenReturn(Optional.of(curso));
+
+        when(cursoRepository.existsByNombreAndIdNot("Historia I", 1L))
+                .thenReturn(false);
+
+        CursoRequest request = new CursoRequest(
+                "Historia I",
+                "Historia universal",
+                8
+        );
+
+        CursoResponse respuestaEsperada = new CursoResponse(
+                1L,
+                "Historia I",
+                "Historia universal",
+                8
+        );
+
+        when(cursoMapper.entidadAResponse(curso))
+                .thenReturn(respuestaEsperada);
 
         CursoResponse resultado = cursoService.actualizar(request, 1L);
 
-        assertThat(resultado.nombre()).isEqualTo("Historia I");
-        assertThat(curso.getNombre()).isEqualTo("Historia I");
-        assertThat(curso.getDescripcion()).isEqualTo("Historia universal");
-        assertThat(curso.getCreditos()).isEqualTo(8);
-        verify(cursoRepository).saveAndFlush(curso);
+        assertThat(resultado)
+                .isEqualTo(respuestaEsperada);
+
+        assertThat(curso.getNombre())
+                .isEqualTo("Historia I");
+
+        assertThat(curso.getDescripcion())
+                .isEqualTo("Historia universal");
+
+        assertThat(curso.getCreditos())
+                .isEqualTo(8);
+
+        verify(cursoRepository)
+                .existsByNombreAndIdNot("Historia I", 1L);
+
+        verify(cursoRepository)
+                .saveAndFlush(curso);
     }
 
     @Test
@@ -178,30 +206,65 @@ class CursoServiceImplTest {
 
     @Test
     void actualizar_debeLanzarExcepcion_cuandoElNuevoNombreYaLoUsaOtroCurso() {
-        when(cursoRepository.findById(1L)).thenReturn(Optional.of(curso));
-        when(cursoRepository.existsByNombreAndIdNot("Historia I", 1L)).thenReturn(true);
 
-        CursoRequest request = new CursoRequest("Historia I", "Historia universal", 8);
+        when(cursoRepository.findById(1L))
+                .thenReturn(Optional.of(curso));
 
-        assertThatThrownBy(() -> cursoService.actualizar(request, 1L))
+        when(cursoRepository.existsByNombreAndIdNot("Historia I", 1L))
+                .thenReturn(true);
+
+        CursoRequest request = new CursoRequest(
+                "Historia I",
+                "Historia universal",
+                8
+        );
+
+        assertThatThrownBy(() ->
+                cursoService.actualizar(request, 1L)
+        )
                 .isInstanceOf(ConflictoException.class)
-                .hasMessageContaining("Ya existe un curso con el nombre: Historia I");
+                .hasMessageContaining(
+                        "Ya existe un curso con el nombre: Historia I"
+                );
 
-        assertThat(curso.getNombre()).isEqualTo("Matemáticas I"); // sin cambios
-        verify(cursoRepository, never()).saveAndFlush(any());
+        assertThat(curso.getNombre())
+                .isEqualTo("Matemáticas I");
+
+        assertThat(curso.getDescripcion())
+                .isEqualTo("Fundamentos matemáticos");
+
+        assertThat(curso.getCreditos())
+                .isEqualTo(6);
+
+        verify(cursoRepository)
+                .existsByNombreAndIdNot("Historia I", 1L);
+
+        verify(cursoRepository, never())
+                .saveAndFlush(any());
     }
 
     @Test
     void actualizar_debeLanzarExcepcion_cuandoLosDatosSonInvalidos() {
-        when(cursoRepository.findById(1L)).thenReturn(Optional.of(curso));
 
-        CursoRequest request = new CursoRequest("Historia I", "desc", 0);
+        when(cursoRepository.findById(1L))
+                .thenReturn(Optional.of(curso));
 
-        assertThatThrownBy(() -> cursoService.actualizar(request, 1L))
+        CursoRequest request = new CursoRequest(
+                "Historia I",
+                "desc",
+                0
+        );
+
+        assertThatThrownBy(() ->
+                cursoService.actualizar(request, 1L)
+        )
                 .isInstanceOf(DatoInvalidoException.class);
 
-        verify(cursoRepository, never()).existsByNombreAndIdNot(anyString(), anyLong());
-        verify(cursoRepository, never()).saveAndFlush(any());
+        verify(cursoRepository, never())
+                .existsByNombreAndIdNot(anyString(), anyLong());
+
+        verify(cursoRepository, never())
+                .saveAndFlush(any());
     }
 
     // ---------- eliminar() ----------

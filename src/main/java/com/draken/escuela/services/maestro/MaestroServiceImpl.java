@@ -7,6 +7,7 @@ import com.draken.escuela.entities.Curso;
 import com.draken.escuela.entities.Maestro;
 import com.draken.escuela.exceptions.ConflictoException;
 import com.draken.escuela.exceptions.EntidadRelacionadaException;
+import com.draken.escuela.exceptions.RecursoNoEncontradoException;
 import com.draken.escuela.mapper.CursoMapper;
 import com.draken.escuela.mapper.MaestroMapper;
 import com.draken.escuela.repositories.CursoRepository;
@@ -19,6 +20,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Locale;
 
 @Service
 @RequiredArgsConstructor
@@ -51,13 +53,7 @@ public class MaestroServiceImpl implements MaestroService{
     @Override
     public MaestroResponse registrar(MaestroRequest request) {
 
-        Maestro maestro = Maestro.crear(
-                request.nombre(),
-                request.apellidoPaterno(),
-                request.apellidoMaterno(),
-                request.email(),
-                request.telefono()
-        );
+        Maestro maestro = maestroMapper.requestAEntidad(request);
 
         validarDatosUnicos(maestro.getEmail(), maestro.getTelefono());
 
@@ -77,7 +73,7 @@ public class MaestroServiceImpl implements MaestroService{
                 request.email(),
                 request.telefono()
         )) {
-            validarCambiosUnicos(request.email(), request.telefono(), id);
+            validarCambiosUnicos(request.email().trim().toLowerCase(Locale.ROOT), request.telefono().trim(), id);
             maestro.actualizar(
                     request.nombre(),
                     request.apellidoPaterno(),
@@ -111,7 +107,7 @@ public class MaestroServiceImpl implements MaestroService{
     @Transactional(readOnly = true)
     public List<DatosCurso> obtenerCursosDeUnMaestroConId(Long id){
         if(!maestroRepository.existsById(id))
-            throw new ConflictoException("El maestro no existe con id: " + id);
+            throw new RecursoNoEncontradoException("El maestro no existe con id: " + id);
 
         log.info("Listando cursos del maestro con id: {}", id);
 

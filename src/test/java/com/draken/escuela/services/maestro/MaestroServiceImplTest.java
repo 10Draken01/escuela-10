@@ -122,6 +122,10 @@ class MaestroServiceImplTest {
     void registrar_debeGuardarYRetornarMaestro_cuandoEmailYTelefonoEstanLibres() {
         MaestroRequest request = new MaestroRequest(
                 "Laura", "Martínez", "López", "laura@escuela.com", "5551010789");
+
+        when(maestroMapper.requestAEntidad(request))
+                .thenReturn(maestro);
+
         when(maestroRepository.existsByEmail("laura@escuela.com")).thenReturn(false);
         when(maestroRepository.existsByTelefono("5551010789")).thenReturn(false);
         when(maestroMapper.entidadAResponse(any(Maestro.class))).thenReturn(maestroResponse);
@@ -137,6 +141,10 @@ class MaestroServiceImplTest {
         // Maestro.crear recorta y pasa a minúsculas; el service debe consultar con ese valor
         MaestroRequest request = new MaestroRequest(
                 "Laura", "Martínez", "López", "  Laura@Escuela.COM ", "5551010789");
+
+        when(maestroMapper.requestAEntidad(request))
+                .thenReturn(maestro);
+
         when(maestroRepository.existsByEmail("laura@escuela.com")).thenReturn(false);
         when(maestroRepository.existsByTelefono("5551010789")).thenReturn(false);
         when(maestroMapper.entidadAResponse(any(Maestro.class))).thenReturn(maestroResponse);
@@ -152,6 +160,10 @@ class MaestroServiceImplTest {
     void registrar_debeLanzarExcepcion_cuandoElEmailYaExiste() {
         MaestroRequest request = new MaestroRequest(
                 "Laura", "Martínez", "López", "laura@escuela.com", "5551010789");
+
+        when(maestroMapper.requestAEntidad(request))
+                .thenReturn(maestro);
+
         when(maestroRepository.existsByEmail("laura@escuela.com")).thenReturn(true);
 
         assertThatThrownBy(() -> maestroService.registrar(request))
@@ -165,6 +177,10 @@ class MaestroServiceImplTest {
     void registrar_debeLanzarExcepcion_cuandoElTelefonoYaExiste() {
         MaestroRequest request = new MaestroRequest(
                 "Laura", "Martínez", "López", "laura@escuela.com", "5551010789");
+
+        when(maestroMapper.requestAEntidad(request))
+                .thenReturn(maestro);
+
         when(maestroRepository.existsByEmail("laura@escuela.com")).thenReturn(false);
         when(maestroRepository.existsByTelefono("5551010789")).thenReturn(true);
 
@@ -178,12 +194,18 @@ class MaestroServiceImplTest {
     @Test
     void registrar_debeLanzarExcepcion_cuandoLosDatosSonInvalidos() {
         MaestroRequest request = new MaestroRequest(
-                "Ana", "Martínez", "López", "laura@escuela.com", "5551010789");
+                "Ana", "Martínez", "López",
+                "laura@escuela.com",
+                "5551010789"
+        );
+
+        when(maestroMapper.requestAEntidad(request))
+                .thenThrow(new DatoInvalidoException("El nombre es requerido"));
 
         assertThatThrownBy(() -> maestroService.registrar(request))
                 .isInstanceOf(DatoInvalidoException.class);
 
-        verifyNoInteractions(maestroRepository, maestroMapper);
+        verifyNoInteractions(maestroRepository);
     }
 
     // ---------- actualizar() ----------
@@ -284,8 +306,6 @@ class MaestroServiceImplTest {
         verify(maestroRepository, never()).saveAndFlush(any());
     }
 
-    @Disabled("Bug conocido: actualizar() valida unicidad con el email sin normalizar " +
-            "(registrar() sí usa el normalizado). Quita @Disabled cuando lo corrijas.")
     @Test
     void actualizar_debeValidarUnicidadConEmailNormalizado() {
         when(maestroRepository.findById(1L)).thenReturn(Optional.of(maestro));
@@ -364,19 +384,7 @@ class MaestroServiceImplTest {
         assertThat(maestroService.obtenerCursosDeUnMaestroConId(1L)).isEmpty();
     }
 
-    @Test
-    void obtenerCursosDeUnMaestroConId_debeLanzarConflicto_cuandoElMaestroNoExiste() {
-        // Comportamiento ACTUAL: ConflictoException (409). El contrato pide 404, ver test deshabilitado.
-        when(maestroRepository.existsById(99L)).thenReturn(false);
 
-        assertThatThrownBy(() -> maestroService.obtenerCursosDeUnMaestroConId(99L))
-                .isInstanceOf(ConflictoException.class)
-                .hasMessageContaining("El maestro no existe con id: 99");
-    }
-
-    @Disabled("Contrato: entidad no encontrada => 404 (RecursoNoEncontradoException). " +
-            "Hoy el service lanza ConflictoException. Activa este test al corregirlo " +
-            "y elimina el anterior.")
     @Test
     void obtenerCursosDeUnMaestroConId_debeLanzarNoEncontrado_cuandoElMaestroNoExiste() {
         when(maestroRepository.existsById(99L)).thenReturn(false);
