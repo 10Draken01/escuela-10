@@ -4,12 +4,16 @@ import com.draken.escuela.dto.curso.CursoRequest;
 import com.draken.escuela.dto.curso.CursoResponse;
 import com.draken.escuela.entities.Curso;
 import com.draken.escuela.exceptions.ConflictoException;
+import com.draken.escuela.exceptions.DatoInvalidoException;
+import com.draken.escuela.exceptions.EntidadRelacionadaException;
 import com.draken.escuela.exceptions.RecursoNoEncontradoException;
 import com.draken.escuela.mapper.CursoMapper;
 import com.draken.escuela.repositories.CursoRepository;
+import com.draken.escuela.repositories.GrupoRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -20,8 +24,11 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -32,6 +39,9 @@ class CursoServiceImplTest {
 
     @Mock
     private CursoMapper cursoMapper;
+
+    @Mock
+    private GrupoRepository grupoRepository;
 
     @InjectMocks
     private CursoServiceImpl cursoService;
@@ -60,8 +70,7 @@ class CursoServiceImplTest {
 
         List<CursoResponse> resultado = cursoService.listar();
 
-        assertThat(resultado).hasSize(1);
-        assertThat(resultado.get(0).nombre()).isEqualTo("Matemáticas I");
+        assertThat(resultado).containsExactly(cursoResponse);
         verify(cursoRepository).findAll();
     }
 
@@ -69,9 +78,7 @@ class CursoServiceImplTest {
     void listar_debeRetornarListaVacia_cuandoNoHayCursosRegistrados() {
         when(cursoRepository.findAll()).thenReturn(List.of());
 
-        List<CursoResponse> resultado = cursoService.listar();
-
-        assertThat(resultado).isEmpty();
+        assertThat(cursoService.listar()).isEmpty();
     }
 
     // ---------- obtenerPorId() ----------
@@ -100,15 +107,18 @@ class CursoServiceImplTest {
 
     @Test
     void registrar_debeGuardarYRetornarCurso_cuandoElNombreNoExistePreviamente() {
-        CursoRequest request = new CursoRequest("Matemáticas I", "Fundamentos matemáticos", 6);
-
+        CursoRequest request = new CursoRequest("  Matemáticas I  ", "  Fundamentos matemáticos ", 6);
         when(cursoRepository.existsByNombre("Matemáticas I")).thenReturn(false);
         when(cursoMapper.entidadAResponse(any(Curso.class))).thenReturn(cursoResponse);
 
         CursoResponse resultado = cursoService.registrar(request);
 
         assertThat(resultado).isEqualTo(cursoResponse);
-        verify(cursoRepository).save(any(Curso.class));
+        ArgumentCaptor<Curso> captor = ArgumentCaptor.forClass(Curso.class);
+        verify(cursoRepository).saveAndFlush(captor.capture());
+        assertThat(captor.getValue().getNombre()).isEqualTo("Matemáticas I");
+        assertThat(captor.getValue().getDescripcion()).isEqualTo("Fundamentos matemáticos");
+        assertThat(captor.getValue().getCreditos()).isEqualTo(6);
     }
 
     @Test
@@ -120,7 +130,17 @@ class CursoServiceImplTest {
                 .isInstanceOf(ConflictoException.class)
                 .hasMessageContaining("Nombre del curso ya existente");
 
-        verify(cursoRepository, never()).save(any());
+        verify(cursoRepository, never()).saveAndFlush(any());
+    }
+
+    @Test
+    void registrar_debeLanzarExcepcion_cuandoLosDatosSonInvalidos() {
+        CursoRequest request = new CursoRequest("Mate", "desc", 6);
+
+        assertThatThrownBy(() -> cursoService.registrar(request))
+                .isInstanceOf(DatoInvalidoException.class);
+
+        verifyNoInteractions(cursoRepository, cursoMapper);
     }
 
     // ---------- actualizar() ----------
@@ -137,8 +157,10 @@ class CursoServiceImplTest {
         CursoResponse resultado = cursoService.actualizar(request, 1L);
 
         assertThat(resultado.nombre()).isEqualTo("Historia I");
+        assertThat(curso.getNombre()).isEqualTo("Historia I");
+        assertThat(curso.getDescripcion()).isEqualTo("Historia universal");
         assertThat(curso.getCreditos()).isEqualTo(8);
-        verify(cursoRepository).save(curso);
+        verify(cursoRepository).saveAndFlush(curso);
     }
 
     @Test
@@ -151,7 +173,7 @@ class CursoServiceImplTest {
                 .isInstanceOf(RecursoNoEncontradoException.class)
                 .hasMessageContaining("Curso no encontrado con id: 99");
 
-        verify(cursoRepository, never()).save(any());
+        verify(cursoRepository, never()).saveAndFlush(any());
     }
 
     @Test
@@ -165,19 +187,46 @@ class CursoServiceImplTest {
                 .isInstanceOf(ConflictoException.class)
                 .hasMessageContaining("Ya existe un curso con el nombre: Historia I");
 
-        verify(cursoRepository, never()).save(any());
+        assertThat(curso.getNombre()).isEqualTo("Matemáticas I"); // sin cambios
+        verify(cursoRepository, never()).saveAndFlush(any());
+    }
+
+    @Test
+    void actualizar_debeLanzarExcepcion_cuandoLosDatosSonInvalidos() {
+        when(cursoRepository.findById(1L)).thenReturn(Optional.of(curso));
+
+        CursoRequest request = new CursoRequest("Historia I", "desc", 0);
+
+        assertThatThrownBy(() -> cursoService.actualizar(request, 1L))
+                .isInstanceOf(DatoInvalidoException.class);
+
+        verify(cursoRepository, never()).existsByNombreAndIdNot(anyString(), anyLong());
+        verify(cursoRepository, never()).saveAndFlush(any());
     }
 
     // ---------- eliminar() ----------
 
     @Test
-    void eliminar_debeEliminarCurso_cuandoExiste() {
+    void eliminar_debeEliminarCurso_cuandoExisteYNoTieneGrupos() {
         when(cursoRepository.findById(1L)).thenReturn(Optional.of(curso));
+        when(grupoRepository.existsByCursoId(1L)).thenReturn(false);
 
         cursoService.eliminar(1L);
 
         verify(cursoRepository).delete(curso);
         verify(cursoRepository).flush();
+    }
+
+    @Test
+    void eliminar_debeLanzarExcepcion_cuandoElCursoTieneGruposAsignados() {
+        when(cursoRepository.findById(1L)).thenReturn(Optional.of(curso));
+        when(grupoRepository.existsByCursoId(1L)).thenReturn(true);
+
+        assertThatThrownBy(() -> cursoService.eliminar(1L))
+                .isInstanceOf(EntidadRelacionadaException.class)
+                .hasMessageContaining("No se puede eliminar si tiene grupos asignados");
+
+        verify(cursoRepository, never()).delete(any());
     }
 
     @Test
@@ -188,5 +237,6 @@ class CursoServiceImplTest {
                 .isInstanceOf(RecursoNoEncontradoException.class);
 
         verify(cursoRepository, never()).delete(any());
+        verifyNoInteractions(grupoRepository);
     }
 }

@@ -4,12 +4,16 @@ import com.draken.escuela.dto.aula.AulaRequest;
 import com.draken.escuela.dto.aula.AulaResponse;
 import com.draken.escuela.entities.Aula;
 import com.draken.escuela.exceptions.ConflictoException;
+import com.draken.escuela.exceptions.DatoInvalidoException;
+import com.draken.escuela.exceptions.EntidadRelacionadaException;
 import com.draken.escuela.exceptions.RecursoNoEncontradoException;
 import com.draken.escuela.mapper.AulaMapper;
 import com.draken.escuela.repositories.AulaRepository;
+import com.draken.escuela.repositories.GrupoRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -20,8 +24,11 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -32,6 +39,10 @@ class AulaServiceImplTest {
 
     @Mock
     private AulaMapper aulaMapper;
+
+    // Sin este mock, @InjectMocks inyecta null y eliminar() lanza NullPointerException
+    @Mock
+    private GrupoRepository grupoRepository;
 
     @InjectMocks
     private AulaServiceImpl aulaService;
@@ -54,28 +65,21 @@ class AulaServiceImplTest {
 
     @Test
     void listar_debeRetornarListaDeAulas_cuandoExistenRegistros() {
-        // Arrange
         when(aulaRepository.findAll()).thenReturn(List.of(aula));
         when(aulaMapper.entidadAResponse(aula)).thenReturn(aulaResponse);
 
-        // Act
         List<AulaResponse> resultado = aulaService.listar();
 
-        // Assert
-        assertThat(resultado).hasSize(1);
-        assertThat(resultado.get(0).nombre()).isEqualTo("Aula 101");
+        assertThat(resultado).containsExactly(aulaResponse);
         verify(aulaRepository).findAll();
     }
 
     @Test
     void listar_debeRetornarListaVacia_cuandoNoHayAulasRegistradas() {
-        // Arrange
         when(aulaRepository.findAll()).thenReturn(List.of());
 
-        // Act
         List<AulaResponse> resultado = aulaService.listar();
 
-        // Assert
         assertThat(resultado).isEmpty();
     }
 
@@ -105,41 +109,46 @@ class AulaServiceImplTest {
 
     @Test
     void registrar_debeGuardarYRetornarAula_cuandoElNombreNoExistePreviamente() {
-        // Arrange: Aula.crear(...) es código real; el nombre queda sin espacios ("Aula 101")
-        AulaRequest request = new AulaRequest("Aula 101", 30);
-
         // El service pregunta por el nombre ya limpio (trimmed)
+        AulaRequest request = new AulaRequest("  Aula 101  ", 30);
         when(aulaRepository.existsByNombre("Aula 101")).thenReturn(false);
         when(aulaMapper.entidadAResponse(any(Aula.class))).thenReturn(aulaResponse);
 
-        // Act
         AulaResponse resultado = aulaService.registrar(request);
 
-        // Assert
         assertThat(resultado).isEqualTo(aulaResponse);
-        verify(aulaRepository).save(any(Aula.class));
+        ArgumentCaptor<Aula> captor = ArgumentCaptor.forClass(Aula.class);
+        verify(aulaRepository).saveAndFlush(captor.capture());
+        assertThat(captor.getValue().getNombre()).isEqualTo("Aula 101");
+        assertThat(captor.getValue().getCapacidad()).isEqualTo(30);
     }
 
     @Test
     void registrar_debeLanzarExcepcion_cuandoYaExisteUnaAulaConEseNombre() {
-        // Arrange
         AulaRequest request = new AulaRequest("Aula 101", 30);
         when(aulaRepository.existsByNombre("Aula 101")).thenReturn(true);
 
-        // Act + Assert
         assertThatThrownBy(() -> aulaService.registrar(request))
                 .isInstanceOf(ConflictoException.class)
                 .hasMessageContaining("El nombre del aula ya existe");
 
-        // Si algo falla antes, no se guarda nada a medias
-        verify(aulaRepository, never()).save(any());
+        verify(aulaRepository, never()).saveAndFlush(any());
+    }
+
+    @Test
+    void registrar_debeLanzarExcepcion_cuandoLosDatosSonInvalidos() {
+        AulaRequest request = new AulaRequest("Ab", 30);
+
+        assertThatThrownBy(() -> aulaService.registrar(request))
+                .isInstanceOf(DatoInvalidoException.class);
+
+        verifyNoInteractions(aulaRepository, aulaMapper);
     }
 
     // ---------- actualizar() ----------
 
     @Test
     void actualizar_debeActualizarDatos_cuandoAulaExisteYNombreEstaLibre() {
-        // Arrange
         when(aulaRepository.findById(1L)).thenReturn(Optional.of(aula));
         when(aulaRepository.existsByNombreAndIdNot("Aula 202", 1L)).thenReturn(false);
 
@@ -147,13 +156,12 @@ class AulaServiceImplTest {
         AulaResponse respuestaEsperada = new AulaResponse(1L, "Aula 202", 40);
         when(aulaMapper.entidadAResponse(aula)).thenReturn(respuestaEsperada);
 
-        // Act
         AulaResponse resultado = aulaService.actualizar(request, 1L);
 
-        // Assert
         assertThat(resultado.nombre()).isEqualTo("Aula 202");
+        assertThat(aula.getNombre()).isEqualTo("Aula 202");
         assertThat(aula.getCapacidad()).isEqualTo(40);
-        verify(aulaRepository).save(aula);
+        verify(aulaRepository).saveAndFlush(aula);
     }
 
     @Test
@@ -166,36 +174,60 @@ class AulaServiceImplTest {
                 .isInstanceOf(RecursoNoEncontradoException.class)
                 .hasMessageContaining("Aula no encontrado con id: 99");
 
-        verify(aulaRepository, never()).save(any());
+        verify(aulaRepository, never()).saveAndFlush(any());
     }
 
     @Test
     void actualizar_debeLanzarExcepcion_cuandoElNuevoNombreYaLoUsaOtraAula() {
-        // Arrange: el aula id=1 existe, pero el nombre nuevo ya lo tiene OTRA aula
         when(aulaRepository.findById(1L)).thenReturn(Optional.of(aula));
         when(aulaRepository.existsByNombreAndIdNot("Aula 202", 1L)).thenReturn(true);
 
         AulaRequest request = new AulaRequest("Aula 202", 40);
 
-        // Act + Assert
         assertThatThrownBy(() -> aulaService.actualizar(request, 1L))
                 .isInstanceOf(ConflictoException.class)
                 .hasMessageContaining("Una aula con el mismo nombre ya existe");
 
-        verify(aulaRepository, never()).save(any());
+        assertThat(aula.getNombre()).isEqualTo("Aula 101"); // sin cambios
+        verify(aulaRepository, never()).saveAndFlush(any());
+    }
+
+    @Test
+    void actualizar_debeLanzarExcepcion_cuandoLosDatosSonInvalidos() {
+        when(aulaRepository.findById(1L)).thenReturn(Optional.of(aula));
+
+        AulaRequest request = new AulaRequest("Aula 202", 0);
+
+        assertThatThrownBy(() -> aulaService.actualizar(request, 1L))
+                .isInstanceOf(DatoInvalidoException.class);
+
+        verify(aulaRepository, never()).existsByNombreAndIdNot(anyString(), anyLong());
+        verify(aulaRepository, never()).saveAndFlush(any());
     }
 
     // ---------- eliminar() ----------
 
     @Test
-    void eliminar_debeEliminarAula_cuandoExiste() {
+    void eliminar_debeEliminarAula_cuandoExisteYNoTieneGrupos() {
         when(aulaRepository.findById(1L)).thenReturn(Optional.of(aula));
+        when(grupoRepository.existsByAulaId(1L)).thenReturn(false);
 
         aulaService.eliminar(1L);
 
         verify(aulaRepository).delete(aula);
-        // eliminar() también llama a flush() explícitamente
         verify(aulaRepository).flush();
+    }
+
+    @Test
+    void eliminar_debeLanzarExcepcion_cuandoElAulaTieneGruposAsignados() {
+        when(aulaRepository.findById(1L)).thenReturn(Optional.of(aula));
+        when(grupoRepository.existsByAulaId(1L)).thenReturn(true);
+
+        assertThatThrownBy(() -> aulaService.eliminar(1L))
+                .isInstanceOf(EntidadRelacionadaException.class)
+                .hasMessageContaining("No se puede eliminar si tiene grupos asignados");
+
+        verify(aulaRepository, never()).delete(any());
     }
 
     @Test
@@ -206,5 +238,6 @@ class AulaServiceImplTest {
                 .isInstanceOf(RecursoNoEncontradoException.class);
 
         verify(aulaRepository, never()).delete(any());
+        verifyNoInteractions(grupoRepository);
     }
 }

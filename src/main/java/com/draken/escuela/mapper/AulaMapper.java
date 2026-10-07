@@ -2,6 +2,7 @@ package com.draken.escuela.mapper;
 
 import com.draken.escuela.dto.aula.AulaRequest;
 import com.draken.escuela.dto.aula.AulaResponse;
+import com.draken.escuela.dto.datos.DatosAula;
 import com.draken.escuela.entities.Aula;
 import org.springframework.stereotype.Component;
 
@@ -23,6 +24,14 @@ public class AulaMapper implements CommonMapper<AulaRequest, AulaResponse, Aula>
                         entidad.getId(),
                         entidad.getNombre(),
                         entidad.getCapacidad()
+        );
+    }
+
+    public DatosAula entidadADatosAula(Aula aula){
+        return aula == null ? null
+                : new DatosAula(
+                aula.getNombre(),
+                aula.getCapacidad()
         );
     }
 }

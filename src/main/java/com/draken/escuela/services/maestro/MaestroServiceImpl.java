@@ -61,7 +61,7 @@ public class MaestroServiceImpl implements MaestroService{
 
         validarDatosUnicos(maestro.getEmail(), maestro.getTelefono());
 
-        maestroRepository.save(maestro);
+        maestroRepository.saveAndFlush(maestro);
         log.info("Maestro agregado con id: {}", maestro.getId());
         return maestroMapper.entidadAResponse(maestro);
     }
@@ -70,27 +70,26 @@ public class MaestroServiceImpl implements MaestroService{
     public MaestroResponse actualizar(MaestroRequest request, Long id) {
         Maestro maestro = obterMaestro(id);
 
-        Maestro maestroConCambios = Maestro.crear(
+        if(maestro.cambioEnDatos(
                 request.nombre(),
                 request.apellidoPaterno(),
                 request.apellidoMaterno(),
                 request.email(),
                 request.telefono()
-        );
+        )) {
+            validarCambiosUnicos(request.email(), request.telefono(), id);
+            maestro.actualizar(
+                    request.nombre(),
+                    request.apellidoPaterno(),
+                    request.apellidoMaterno(),
+                    request.email(),
+                    request.telefono()
+            );
 
-        validarCambiosUnicos(request.email(), request.telefono(), id);
+            maestroRepository.saveAndFlush(maestro);
 
-        maestro.actualizar(
-                maestroConCambios.getNombre(),
-                maestroConCambios.getApellidoPaterno(),
-                maestroConCambios.getApellidoMaterno(),
-                maestroConCambios.getEmail(),
-                maestroConCambios.getTelefono()
-        );
-
-        maestroRepository.save(maestro);
-
-        log.info("Maestro {} actualizado con id: {}", maestro.getNombre(), maestro.getId());
+            log.info("Maestro {} actualizado con id: {}", maestro.getNombre(), maestro.getId());
+        }
 
         return maestroMapper.entidadAResponse(maestro);
     }

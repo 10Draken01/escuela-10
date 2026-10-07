@@ -36,12 +36,28 @@ public class Calificacion {
     private static void validarDatos(
             BigDecimal calificacion
     ){
+        if(calificacion == null)
+            throw new DatoInvalidoException("La calificacion es requerida");
         if(
             calificacion.compareTo(BigDecimal.TEN) > 0 ||
             calificacion.compareTo(BigDecimal.ZERO) < 0
         )
             throw new DatoInvalidoException("La calificacion debe ser positiva y estar entre 0 y 10");
     }
+
+    public void asignarInscripcion(Inscripcion inscripcion) {
+        if(inscripcion == null)
+            throw new DatoInvalidoException("La inscripcion es requerida");
+        this.inscripcion = inscripcion;
+    }
+
+    public void actualizar(
+            BigDecimal calificacion
+    ){
+        validarDatos(calificacion);
+        this.calificacion = calificacion;
+    }
+
     public static Calificacion crear(BigDecimal calificacion){
         validarDatos(calificacion);
         return Calificacion.builder()

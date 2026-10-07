@@ -3,17 +3,41 @@ package com.draken.escuela.utils;
 import com.draken.escuela.exceptions.DatoInvalidoException;
 
 import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 
 public class HoraUtils {
-    public static void validarHora(String hora, String mensaje) {
+
+    public static void validarFormatoHora(String hora, String mensaje) {
         DateTimeFormatter formatter =
                 DateTimeFormatter.ofPattern("HH:mm");
 
         try {
-            LocalDateTime.parse(hora, formatter);
+            LocalTime.parse(hora, formatter);
         } catch (DateTimeParseException e) {
+            throw new DatoInvalidoException(mensaje);
+        }
+    }
+
+    public static void validarFormatoPeriodo(String periodo, String mensaje) {
+        DateTimeFormatter formatter =
+                DateTimeFormatter.ofPattern("uuuu-MM");
+
+        try {
+            YearMonth.parse(periodo, formatter);
+        } catch (DateTimeParseException e) {
+            throw new DatoInvalidoException(mensaje);
+        }
+    }
+
+    public static void validarHoraInicioFin(String horaInicio, String horaFin, String mensaje) {
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("HH:mm");
+        LocalTime inicio = LocalTime.parse(horaInicio, formatter);
+        LocalTime fin = LocalTime.parse(horaFin, formatter);
+
+        if (!inicio.isBefore(fin)) {
             throw new DatoInvalidoException(mensaje);
         }
     }

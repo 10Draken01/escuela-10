@@ -35,8 +35,9 @@ public class ValoresNumericosUtils {
     }
 
     public static void validarStringSoloNumeros(String texto, String mensaje){
-        for(int i = 0; i < texto.length(); i++){
-            validarCharSeaNumero(texto.charAt(i), mensaje);
+        String trimTexto = texto.trim();
+        for(int i = 0; i < trimTexto.length(); i++){
+            validarCharSeaNumero(trimTexto.charAt(i), mensaje);
         }
     }
 }

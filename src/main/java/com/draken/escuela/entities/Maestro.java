@@ -99,6 +99,25 @@ public class Maestro {
         this.telefono = telefono.trim();
     }
 
+    public boolean cambioEnDatos(
+            String nombre,
+            String apellidoPaterno,
+            String apellidoMaterno,
+            String email,
+            String telefono
+    ){
+        validarDatos(nombre, apellidoPaterno, apellidoMaterno, email, telefono);
+        return !this.nombre.equals(nombre.trim()) ||
+                !this.apellidoPaterno.equals(apellidoPaterno.trim()) ||
+                !this.apellidoMaterno.equals(apellidoMaterno.trim()) ||
+                !this.email.equals(email.trim().toLowerCase()) ||
+                !this.telefono.equals(telefono.trim());
+    }
+
+    public String obtenerNombreCompleto() {
+        return String.format("%s %s %s", nombre, apellidoPaterno, apellidoMaterno);
+    }
+
     public void asignarGrupo(Grupo grupo){
         if (grupo == null)
             throw new DatoInvalidoException("El grupo es requerido");

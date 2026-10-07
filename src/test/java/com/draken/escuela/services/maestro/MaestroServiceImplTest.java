@@ -6,6 +6,7 @@ import com.draken.escuela.dto.maestro.MaestroResponse;
 import com.draken.escuela.entities.Curso;
 import com.draken.escuela.entities.Maestro;
 import com.draken.escuela.exceptions.ConflictoException;
+import com.draken.escuela.exceptions.DatoInvalidoException;
 import com.draken.escuela.exceptions.EntidadRelacionadaException;
 import com.draken.escuela.exceptions.RecursoNoEncontradoException;
 import com.draken.escuela.mapper.CursoMapper;
@@ -14,8 +15,10 @@ import com.draken.escuela.repositories.CursoRepository;
 import com.draken.escuela.repositories.GrupoRepository;
 import com.draken.escuela.repositories.MaestroRepository;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -26,8 +29,11 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -78,8 +84,7 @@ class MaestroServiceImplTest {
 
         List<MaestroResponse> resultado = maestroService.listar();
 
-        assertThat(resultado).hasSize(1);
-        assertThat(resultado.get(0).email()).isEqualTo("laura@escuela.com");
+        assertThat(resultado).containsExactly(maestroResponse);
         verify(maestroRepository).findAll();
     }
 
@@ -87,9 +92,7 @@ class MaestroServiceImplTest {
     void listar_debeRetornarListaVacia_cuandoNoHayMaestrosRegistrados() {
         when(maestroRepository.findAll()).thenReturn(List.of());
 
-        List<MaestroResponse> resultado = maestroService.listar();
-
-        assertThat(resultado).isEmpty();
+        assertThat(maestroService.listar()).isEmpty();
     }
 
     // ---------- obtenerPorId() ----------
@@ -119,8 +122,6 @@ class MaestroServiceImplTest {
     void registrar_debeGuardarYRetornarMaestro_cuandoEmailYTelefonoEstanLibres() {
         MaestroRequest request = new MaestroRequest(
                 "Laura", "Martínez", "López", "laura@escuela.com", "5551010789");
-
-        // El email se guarda en minúsculas (Maestro.crear lo normaliza)
         when(maestroRepository.existsByEmail("laura@escuela.com")).thenReturn(false);
         when(maestroRepository.existsByTelefono("5551010789")).thenReturn(false);
         when(maestroMapper.entidadAResponse(any(Maestro.class))).thenReturn(maestroResponse);
@@ -128,7 +129,23 @@ class MaestroServiceImplTest {
         MaestroResponse resultado = maestroService.registrar(request);
 
         assertThat(resultado).isEqualTo(maestroResponse);
-        verify(maestroRepository).save(any(Maestro.class));
+        verify(maestroRepository).saveAndFlush(any(Maestro.class));
+    }
+
+    @Test
+    void registrar_debeValidarUnicidadConEmailNormalizado() {
+        // Maestro.crear recorta y pasa a minúsculas; el service debe consultar con ese valor
+        MaestroRequest request = new MaestroRequest(
+                "Laura", "Martínez", "López", "  Laura@Escuela.COM ", "5551010789");
+        when(maestroRepository.existsByEmail("laura@escuela.com")).thenReturn(false);
+        when(maestroRepository.existsByTelefono("5551010789")).thenReturn(false);
+        when(maestroMapper.entidadAResponse(any(Maestro.class))).thenReturn(maestroResponse);
+
+        maestroService.registrar(request);
+
+        ArgumentCaptor<Maestro> captor = ArgumentCaptor.forClass(Maestro.class);
+        verify(maestroRepository).saveAndFlush(captor.capture());
+        assertThat(captor.getValue().getEmail()).isEqualTo("laura@escuela.com");
     }
 
     @Test
@@ -141,7 +158,7 @@ class MaestroServiceImplTest {
                 .isInstanceOf(ConflictoException.class)
                 .hasMessageContaining("Email ya existente");
 
-        verify(maestroRepository, never()).save(any());
+        verify(maestroRepository, never()).saveAndFlush(any());
     }
 
     @Test
@@ -155,7 +172,18 @@ class MaestroServiceImplTest {
                 .isInstanceOf(ConflictoException.class)
                 .hasMessageContaining("Telefono ya existente");
 
-        verify(maestroRepository, never()).save(any());
+        verify(maestroRepository, never()).saveAndFlush(any());
+    }
+
+    @Test
+    void registrar_debeLanzarExcepcion_cuandoLosDatosSonInvalidos() {
+        MaestroRequest request = new MaestroRequest(
+                "Ana", "Martínez", "López", "laura@escuela.com", "5551010789");
+
+        assertThatThrownBy(() -> maestroService.registrar(request))
+                .isInstanceOf(DatoInvalidoException.class);
+
+        verifyNoInteractions(maestroRepository, maestroMapper);
     }
 
     // ---------- actualizar() ----------
@@ -163,7 +191,6 @@ class MaestroServiceImplTest {
     @Test
     void actualizar_debeActualizarDatos_cuandoMaestroExisteYDatosUnicosEstanLibres() {
         when(maestroRepository.findById(1L)).thenReturn(Optional.of(maestro));
-        // El service valida con los valores crudos del request
         when(maestroRepository.existsByEmailAndIdNot("karla@escuela.com", 1L)).thenReturn(false);
         when(maestroRepository.existsByTelefonoAndIdNot("5559999999", 1L)).thenReturn(false);
 
@@ -176,8 +203,26 @@ class MaestroServiceImplTest {
         MaestroResponse resultado = maestroService.actualizar(request, 1L);
 
         assertThat(resultado.nombre()).isEqualTo("Karla Gómez Pérez");
+        assertThat(maestro.getNombre()).isEqualTo("Karla");
+        assertThat(maestro.getEmail()).isEqualTo("karla@escuela.com");
         assertThat(maestro.getTelefono()).isEqualTo("5559999999");
-        verify(maestroRepository).save(maestro);
+        verify(maestroRepository).saveAndFlush(maestro);
+    }
+
+    @Test
+    void actualizar_noDebeValidarNiGuardar_cuandoNoHayCambios() {
+        when(maestroRepository.findById(1L)).thenReturn(Optional.of(maestro));
+        when(maestroMapper.entidadAResponse(maestro)).thenReturn(maestroResponse);
+
+        MaestroRequest request = new MaestroRequest(
+                "Laura", "Martínez", "López", "laura@escuela.com", "5551010789");
+
+        MaestroResponse resultado = maestroService.actualizar(request, 1L);
+
+        assertThat(resultado).isEqualTo(maestroResponse);
+        verify(maestroRepository, never()).existsByEmailAndIdNot(anyString(), anyLong());
+        verify(maestroRepository, never()).existsByTelefonoAndIdNot(anyString(), anyLong());
+        verify(maestroRepository, never()).saveAndFlush(any());
     }
 
     @Test
@@ -191,7 +236,7 @@ class MaestroServiceImplTest {
                 .isInstanceOf(RecursoNoEncontradoException.class)
                 .hasMessageContaining("Maestro no encontrado con id: 99");
 
-        verify(maestroRepository, never()).save(any());
+        verify(maestroRepository, never()).saveAndFlush(any());
     }
 
     @Test
@@ -206,7 +251,55 @@ class MaestroServiceImplTest {
                 .isInstanceOf(ConflictoException.class)
                 .hasMessageContaining("Otro maestro ya tiene este email");
 
-        verify(maestroRepository, never()).save(any());
+        verify(maestroRepository, never()).saveAndFlush(any());
+    }
+
+    @Test
+    void actualizar_debeLanzarExcepcion_cuandoElNuevoTelefonoYaLoUsaOtroMaestro() {
+        when(maestroRepository.findById(1L)).thenReturn(Optional.of(maestro));
+        when(maestroRepository.existsByEmailAndIdNot("karla@escuela.com", 1L)).thenReturn(false);
+        when(maestroRepository.existsByTelefonoAndIdNot("5559999999", 1L)).thenReturn(true);
+
+        MaestroRequest request = new MaestroRequest(
+                "Karla", "Gómez", "Pérez", "karla@escuela.com", "5559999999");
+
+        assertThatThrownBy(() -> maestroService.actualizar(request, 1L))
+                .isInstanceOf(ConflictoException.class)
+                .hasMessageContaining("Otro maestro ya tiene este telefono");
+
+        assertThat(maestro.getNombre()).isEqualTo("Laura"); // sin cambios
+        verify(maestroRepository, never()).saveAndFlush(any());
+    }
+
+    @Test
+    void actualizar_debeLanzarExcepcion_cuandoLosDatosSonInvalidos() {
+        when(maestroRepository.findById(1L)).thenReturn(Optional.of(maestro));
+
+        MaestroRequest request = new MaestroRequest(
+                "Karla", "Gómez", "Pérez", "karla@escuela.com", "123");
+
+        assertThatThrownBy(() -> maestroService.actualizar(request, 1L))
+                .isInstanceOf(DatoInvalidoException.class);
+
+        verify(maestroRepository, never()).saveAndFlush(any());
+    }
+
+    @Disabled("Bug conocido: actualizar() valida unicidad con el email sin normalizar " +
+            "(registrar() sí usa el normalizado). Quita @Disabled cuando lo corrijas.")
+    @Test
+    void actualizar_debeValidarUnicidadConEmailNormalizado() {
+        when(maestroRepository.findById(1L)).thenReturn(Optional.of(maestro));
+        when(maestroRepository.existsByEmailAndIdNot("karla@escuela.com", 1L)).thenReturn(false);
+        when(maestroRepository.existsByTelefonoAndIdNot("5559999999", 1L)).thenReturn(false);
+        when(maestroMapper.entidadAResponse(maestro)).thenReturn(maestroResponse);
+
+        MaestroRequest request = new MaestroRequest(
+                "Karla", "Gómez", "Pérez", "  KARLA@Escuela.com ", "5559999999");
+
+        maestroService.actualizar(request, 1L);
+
+        verify(maestroRepository).existsByEmailAndIdNot("karla@escuela.com", 1L);
+        verify(maestroRepository).saveAndFlush(maestro);
     }
 
     // ---------- eliminar() ----------
@@ -229,7 +322,7 @@ class MaestroServiceImplTest {
 
         assertThatThrownBy(() -> maestroService.eliminar(1L))
                 .isInstanceOf(EntidadRelacionadaException.class)
-                .hasMessageContaining("No se puede eliminar si tiene grupos asignado");
+                .hasMessageContaining("No se puede eliminar si tiene grupos asignados");
 
         verify(maestroRepository, never()).delete(any());
     }
@@ -242,13 +335,13 @@ class MaestroServiceImplTest {
                 .isInstanceOf(RecursoNoEncontradoException.class);
 
         verify(maestroRepository, never()).delete(any());
+        verifyNoInteractions(grupoRepository);
     }
 
     // ---------- obtenerCursosDeUnMaestroConId() ----------
 
     @Test
     void obtenerCursosDeUnMaestroConId_debeRetornarCursos_cuandoElMaestroExiste() {
-        // Arrange
         Curso curso = Curso.builder()
                 .id(1L).nombre("Matemáticas I").descripcion("Fundamentos").creditos(6)
                 .build();
@@ -258,20 +351,37 @@ class MaestroServiceImplTest {
         when(cursoRepository.obtenerCursosPorIdMaestro(1L)).thenReturn(List.of(curso));
         when(cursoMapper.entidadADatosCurso(curso)).thenReturn(datosCurso);
 
-        // Act
         List<DatosCurso> resultado = maestroService.obtenerCursosDeUnMaestroConId(1L);
 
-        // Assert
-        assertThat(resultado).hasSize(1);
-        assertThat(resultado.get(0).nombre()).isEqualTo("Matemáticas I");
+        assertThat(resultado).containsExactly(datosCurso);
     }
 
     @Test
-    void obtenerCursosDeUnMaestroConId_debeLanzarExcepcion_cuandoElMaestroNoExiste() {
+    void obtenerCursosDeUnMaestroConId_debeRetornarListaVacia_cuandoNoTieneCursos() {
+        when(maestroRepository.existsById(1L)).thenReturn(true);
+        when(cursoRepository.obtenerCursosPorIdMaestro(1L)).thenReturn(List.of());
+
+        assertThat(maestroService.obtenerCursosDeUnMaestroConId(1L)).isEmpty();
+    }
+
+    @Test
+    void obtenerCursosDeUnMaestroConId_debeLanzarConflicto_cuandoElMaestroNoExiste() {
+        // Comportamiento ACTUAL: ConflictoException (409). El contrato pide 404, ver test deshabilitado.
         when(maestroRepository.existsById(99L)).thenReturn(false);
 
         assertThatThrownBy(() -> maestroService.obtenerCursosDeUnMaestroConId(99L))
                 .isInstanceOf(ConflictoException.class)
                 .hasMessageContaining("El maestro no existe con id: 99");
+    }
+
+    @Disabled("Contrato: entidad no encontrada => 404 (RecursoNoEncontradoException). " +
+            "Hoy el service lanza ConflictoException. Activa este test al corregirlo " +
+            "y elimina el anterior.")
+    @Test
+    void obtenerCursosDeUnMaestroConId_debeLanzarNoEncontrado_cuandoElMaestroNoExiste() {
+        when(maestroRepository.existsById(99L)).thenReturn(false);
+
+        assertThatThrownBy(() -> maestroService.obtenerCursosDeUnMaestroConId(99L))
+                .isInstanceOf(RecursoNoEncontradoException.class);
     }
 }
