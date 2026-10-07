@@ -16,15 +16,15 @@ public class HorarioMapper implements CommonMapper<HorarioRequest, HorarioRespon
     public Horario requestAEntidad(HorarioRequest request) {
         return request == null ? null
                 : Horario.crear(
-                        DiaSemana.obtenerDiaPorDescriptcion(request.dia()),
                         request.horaInicio(),
                         request.horaFin()
         );
     }
 
-    public Horario requestAEntidad(HorarioRequest request, Grupo grupo) {
+    public Horario requestAEntidad(HorarioRequest request, DiaSemana diaSemana, Grupo grupo) {
         Horario horario = requestAEntidad(request);
         horario.asignarGrupo(grupo);
+        horario.asignarDiaSemana(diaSemana);
         return horario;
     }
 

@@ -54,10 +54,16 @@ public class Horario {
     }
 
     public void asignarGrupo(Grupo grupo) {
-        if (grupo == null) {
+        if (grupo == null)
             throw new DatoInvalidoException("El grupo no puede ser nulo");
-        }
+
         this.grupo = grupo;
+    }
+
+    public void asignarDiaSemana(DiaSemana diaSemana) {
+        if (diaSemana == null)
+            throw new DatoInvalidoException("El día de la semana es requerido");
+        this.diaSemana = diaSemana;
     }
 
     public boolean cambioEnDatos(
@@ -89,14 +95,12 @@ public class Horario {
     }
 
     public static Horario crear(
-            DiaSemana diaSemana,
             String horaInicio,
             String horaFin
     ){
         validarDatos(horaInicio, horaFin);
 
       return Horario.builder()
-              .diaSemana(diaSemana)
               .horaInicio(horaInicio)
               .horaFin(horaFin)
               .build();

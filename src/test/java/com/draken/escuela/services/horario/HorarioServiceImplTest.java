@@ -102,8 +102,16 @@ class HorarioServiceImplTest {
         when(horarioMapper.entidadAResponse(horario))
                 .thenReturn(horarioResponse);
 
-        assertThat(horarioService.listar())
+        List<HorarioResponse> resultado = horarioService.listar();
+
+        assertThat(resultado)
                 .containsExactly(horarioResponse);
+
+        verify(horarioRepository)
+                .findAll();
+
+        verify(horarioMapper)
+                .entidadAResponse(horario);
     }
 
     @Test
@@ -112,8 +120,15 @@ class HorarioServiceImplTest {
         when(horarioRepository.findAll())
                 .thenReturn(List.of());
 
-        assertThat(horarioService.listar())
+        List<HorarioResponse> resultado = horarioService.listar();
+
+        assertThat(resultado)
                 .isEmpty();
+
+        verify(horarioRepository)
+                .findAll();
+
+        verifyNoInteractions(horarioMapper);
     }
 
     // =========================================================
@@ -129,8 +144,17 @@ class HorarioServiceImplTest {
         when(horarioMapper.entidadAResponse(horario))
                 .thenReturn(horarioResponse);
 
-        assertThat(horarioService.obtenerPorId(1L).id())
-                .isEqualTo(1L);
+        HorarioResponse resultado =
+                horarioService.obtenerPorId(1L);
+
+        assertThat(resultado)
+                .isEqualTo(horarioResponse);
+
+        verify(horarioRepository)
+                .findById(1L);
+
+        verify(horarioMapper)
+                .entidadAResponse(horario);
     }
 
     @Test
@@ -139,11 +163,15 @@ class HorarioServiceImplTest {
         when(horarioRepository.findById(99L))
                 .thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> horarioService.obtenerPorId(99L))
+        assertThatThrownBy(
+                () -> horarioService.obtenerPorId(99L)
+        )
                 .isInstanceOf(RecursoNoEncontradoException.class)
                 .hasMessageContaining(
                         "Horario no encontrado con id: 99"
                 );
+
+        verifyNoInteractions(horarioMapper);
     }
 
     // =========================================================
@@ -153,19 +181,21 @@ class HorarioServiceImplTest {
     @Test
     void registrar_debeGuardarYRetornarHorario_cuandoNoHayTraslape() {
 
-        HorarioRequest request =
-                new HorarioRequest(
-                        5L,
-                        "Lunes",
-                        "08:00",
-                        "10:00"
-                );
+        HorarioRequest request = new HorarioRequest(
+                5L,
+                "Lunes",
+                "08:00",
+                "10:00"
+        );
 
         when(grupoRepository.findById(5L))
                 .thenReturn(Optional.of(grupo));
 
-        when(horarioMapper.requestAEntidad(request, grupo))
-                .thenReturn(horario);
+        when(horarioMapper.requestAEntidad(
+                request,
+                DiaSemana.LUNES,
+                grupo
+        )).thenReturn(horario);
 
         when(horarioRepository.existeTraslape(
                 DiaSemana.LUNES,
@@ -186,6 +216,27 @@ class HorarioServiceImplTest {
         assertThat(resultado)
                 .isEqualTo(horarioResponse);
 
+        verify(grupoRepository)
+                .findById(5L);
+
+        verify(horarioMapper)
+                .requestAEntidad(
+                        request,
+                        DiaSemana.LUNES,
+                        grupo
+                );
+
+        verify(horarioRepository)
+                .existeTraslape(
+                        DiaSemana.LUNES,
+                        "08:00",
+                        "10:00",
+                        "2026-01",
+                        5L,
+                        3L,
+                        SIN_EXCLUIR
+                );
+
         verify(horarioRepository)
                 .saveAndFlush(horario);
     }
@@ -193,26 +244,32 @@ class HorarioServiceImplTest {
     @Test
     void registrar_debeResolverElDiaIgnorandoAcentosYMayusculas() {
 
-        HorarioRequest request =
-                new HorarioRequest(
-                        5L,
-                        "MIÉRCOLES",
-                        "08:00",
-                        "10:00"
-                );
+        Horario horarioMiercoles = Horario.builder()
+                .id(2L)
+                .grupo(grupo)
+                .diaSemana(DiaSemana.MIERCOLES)
+                .horaInicio("08:00")
+                .horaFin("10:00")
+                .build();
+
+        HorarioRequest request = new HorarioRequest(
+                5L,
+                "MIÉRCOLES",
+                "08:00",
+                "10:00"
+        );
 
         when(grupoRepository.findById(5L))
                 .thenReturn(Optional.of(grupo));
 
-        /*
-         * El mapper está mockeado, por lo que debemos devolver
-         * explícitamente el horario que utilizará el service.
-         */
-        when(horarioMapper.requestAEntidad(request, grupo))
-                .thenReturn(horario);
+        when(horarioMapper.requestAEntidad(
+                request,
+                DiaSemana.MIERCOLES,
+                grupo
+        )).thenReturn(horarioMiercoles);
 
         when(horarioRepository.existeTraslape(
-                DiaSemana.LUNES,
+                DiaSemana.MIERCOLES,
                 "08:00",
                 "10:00",
                 "2026-01",
@@ -221,25 +278,42 @@ class HorarioServiceImplTest {
                 SIN_EXCLUIR
         )).thenReturn(false);
 
-        when(horarioMapper.entidadAResponse(horario))
+        when(horarioMapper.entidadAResponse(horarioMiercoles))
                 .thenReturn(horarioResponse);
 
         horarioService.registrar(request);
 
+        verify(horarioMapper)
+                .requestAEntidad(
+                        request,
+                        DiaSemana.MIERCOLES,
+                        grupo
+                );
+
         verify(horarioRepository)
-                .saveAndFlush(horario);
+                .existeTraslape(
+                        DiaSemana.MIERCOLES,
+                        "08:00",
+                        "10:00",
+                        "2026-01",
+                        5L,
+                        3L,
+                        SIN_EXCLUIR
+                );
+
+        verify(horarioRepository)
+                .saveAndFlush(horarioMiercoles);
     }
 
     @Test
     void registrar_debeLanzarExcepcion_cuandoElGrupoNoExiste() {
 
-        HorarioRequest request =
-                new HorarioRequest(
-                        99L,
-                        "Lunes",
-                        "08:00",
-                        "10:00"
-                );
+        HorarioRequest request = new HorarioRequest(
+                99L,
+                "Lunes",
+                "08:00",
+                "10:00"
+        );
 
         when(grupoRepository.findById(99L))
                 .thenReturn(Optional.empty());
@@ -261,27 +335,15 @@ class HorarioServiceImplTest {
     @Test
     void registrar_debeLanzarExcepcion_cuandoElDiaNoExiste() {
 
-        HorarioRequest request =
-                new HorarioRequest(
-                        5L,
-                        "Domingo",
-                        "08:00",
-                        "10:00"
-                );
+        HorarioRequest request = new HorarioRequest(
+                5L,
+                "Domingo",
+                "08:00",
+                "10:00"
+        );
 
         when(grupoRepository.findById(5L))
                 .thenReturn(Optional.of(grupo));
-
-        /*
-         * Como el mapper está mockeado, simulamos que el mapper
-         * es quien detecta que el día no existe.
-         */
-        when(horarioMapper.requestAEntidad(request, grupo))
-                .thenThrow(
-                        new DatoInvalidoException(
-                                "Día inválido: Domingo"
-                        )
-                );
 
         assertThatThrownBy(
                 () -> horarioService.registrar(request)
@@ -289,6 +351,8 @@ class HorarioServiceImplTest {
                 .isInstanceOf(DatoInvalidoException.class)
                 .hasMessageContaining("Domingo");
 
+        verifyNoInteractions(horarioMapper);
+
         verify(horarioRepository, never())
                 .existeTraslape(
                         any(),
@@ -305,21 +369,23 @@ class HorarioServiceImplTest {
     }
 
     @Test
-    void registrar_debeLanzarExcepcion_cuandoHayTraslapeConOtroHorarioDelGrupoOAula() {
+    void registrar_debeLanzarExcepcion_cuandoHayTraslape() {
 
-        HorarioRequest request =
-                new HorarioRequest(
-                        5L,
-                        "Lunes",
-                        "08:00",
-                        "10:00"
-                );
+        HorarioRequest request = new HorarioRequest(
+                5L,
+                "Lunes",
+                "08:00",
+                "10:00"
+        );
 
         when(grupoRepository.findById(5L))
                 .thenReturn(Optional.of(grupo));
 
-        when(horarioMapper.requestAEntidad(request, grupo))
-                .thenReturn(horario);
+        when(horarioMapper.requestAEntidad(
+                request,
+                DiaSemana.LUNES,
+                grupo
+        )).thenReturn(horario);
 
         when(horarioRepository.existeTraslape(
                 DiaSemana.LUNES,
@@ -330,101 +396,20 @@ class HorarioServiceImplTest {
                 3L,
                 SIN_EXCLUIR
         )).thenReturn(true);
-
-        assertThatThrownBy(
-                () -> horarioService.registrar(request)
-        )
-                .isInstanceOf(DatoInvalidoException.class)
-                .hasMessageContaining(
-                        "El horario se traslapa con otro del mismo grupo o aula"
-                );
-
-        verify(horarioRepository, never())
-                .saveAndFlush(any());
-    }
-
-    @Test
-    void registrar_debeLanzarDatoInvalido_cuandoHayTraslape() {
-
-        HorarioRequest request =
-                new HorarioRequest(
-                        5L,
-                        "Lunes",
-                        "08:00",
-                        "10:00"
-                );
-
-        when(grupoRepository.findById(5L))
-                .thenReturn(Optional.of(grupo));
-
-        when(horarioMapper.requestAEntidad(request, grupo))
-                .thenReturn(horario);
-
-        when(horarioRepository.existeTraslape(
-                DiaSemana.LUNES,
-                "08:00",
-                "10:00",
-                "2026-01",
-                5L,
-                3L,
-                SIN_EXCLUIR
-        )).thenReturn(true);
-
-        assertThatThrownBy(
-                () -> horarioService.registrar(request)
-        )
-                .isInstanceOf(DatoInvalidoException.class);
-
-        verify(horarioRepository, never())
-                .saveAndFlush(any());
-    }
-
-    @Test
-    void registrar_noDebeConsultarTraslape_cuandoLaHoraFinNoEsPosteriorALaDeInicio() {
-
-        HorarioRequest request =
-                new HorarioRequest(
-                        5L,
-                        "Lunes",
-                        "10:00",
-                        "08:00"
-                );
-
-        when(grupoRepository.findById(5L))
-                .thenReturn(Optional.of(grupo));
-
-        /*
-         * El mapper crea el Horario y la validación de horas
-         * ocurre dentro de la entidad.
-         */
-        when(horarioMapper.requestAEntidad(request, grupo))
-                .thenThrow(
-                        new DatoInvalidoException(
-                                "La hora de inicio debe ser menor a la hora de fin"
-                        )
-                );
 
         assertThatThrownBy(
                 () -> horarioService.registrar(request)
         )
                 .isInstanceOf(DatoInvalidoException.class)
                 .hasMessage(
-                        "La hora de inicio debe ser menor a la hora de fin"
-                );
-
-        verify(horarioRepository, never())
-                .existeTraslape(
-                        any(),
-                        anyString(),
-                        anyString(),
-                        anyString(),
-                        anyLong(),
-                        anyLong(),
-                        anyLong()
+                        "El horario se traslapa con otro del mismo grupo o aula"
                 );
 
         verify(horarioRepository, never())
                 .saveAndFlush(any());
+
+        verify(horarioMapper, never())
+                .entidadAResponse(any());
     }
 
     // =========================================================
@@ -434,13 +419,12 @@ class HorarioServiceImplTest {
     @Test
     void actualizar_noDebeValidarNiGuardar_cuandoNoHayCambios() {
 
-        HorarioRequest request =
-                new HorarioRequest(
-                        5L,
-                        "Lunes",
-                        "08:00",
-                        "10:00"
-                );
+        HorarioRequest request = new HorarioRequest(
+                5L,
+                "Lunes",
+                "08:00",
+                "10:00"
+        );
 
         when(horarioRepository.findById(1L))
                 .thenReturn(Optional.of(horario));
@@ -475,13 +459,12 @@ class HorarioServiceImplTest {
     @Test
     void actualizar_debeActualizarYGuardar_cuandoCambiaDiaYHorasSinTraslape() {
 
-        HorarioRequest request =
-                new HorarioRequest(
-                        5L,
-                        "Viernes",
-                        "12:00",
-                        "14:00"
-                );
+        HorarioRequest request = new HorarioRequest(
+                5L,
+                "Viernes",
+                "12:00",
+                "14:00"
+        );
 
         when(horarioRepository.findById(1L))
                 .thenReturn(Optional.of(horario));
@@ -502,7 +485,11 @@ class HorarioServiceImplTest {
         when(horarioMapper.entidadAResponse(horario))
                 .thenReturn(horarioResponse);
 
-        horarioService.actualizar(request, 1L);
+        HorarioResponse resultado =
+                horarioService.actualizar(request, 1L);
+
+        assertThat(resultado)
+                .isEqualTo(horarioResponse);
 
         assertThat(horario.getDiaSemana())
                 .isEqualTo(DiaSemana.VIERNES);
@@ -513,12 +500,15 @@ class HorarioServiceImplTest {
         assertThat(horario.getHoraFin())
                 .isEqualTo("14:00");
 
+        assertThat(horario.getGrupo())
+                .isSameAs(grupo);
+
         verify(horarioRepository)
                 .saveAndFlush(horario);
     }
 
     @Test
-    void actualizar_debeUsarElAulaYElPeriodoDelNuevoGrupo_cuandoCambiaElGrupo() {
+    void actualizar_debeActualizarElGrupo_cuandoCambiaElGrupo() {
 
         Aula otraAula = Aula.builder()
                 .id(4L)
@@ -532,13 +522,12 @@ class HorarioServiceImplTest {
                 .periodo("2026-02")
                 .build();
 
-        HorarioRequest request =
-                new HorarioRequest(
-                        6L,
-                        "Lunes",
-                        "08:00",
-                        "10:00"
-                );
+        HorarioRequest request = new HorarioRequest(
+                6L,
+                "Lunes",
+                "08:00",
+                "10:00"
+        );
 
         when(horarioRepository.findById(1L))
                 .thenReturn(Optional.of(horario));
@@ -565,19 +554,29 @@ class HorarioServiceImplTest {
                 .isSameAs(otroGrupo);
 
         verify(horarioRepository)
+                .existeTraslape(
+                        DiaSemana.LUNES,
+                        "08:00",
+                        "10:00",
+                        "2026-02",
+                        6L,
+                        4L,
+                        1L
+                );
+
+        verify(horarioRepository)
                 .saveAndFlush(horario);
     }
 
     @Test
     void actualizar_debeLanzarExcepcion_cuandoHayTraslape() {
 
-        HorarioRequest request =
-                new HorarioRequest(
-                        5L,
-                        "Viernes",
-                        "12:00",
-                        "14:00"
-                );
+        HorarioRequest request = new HorarioRequest(
+                5L,
+                "Viernes",
+                "12:00",
+                "14:00"
+        );
 
         when(horarioRepository.findById(1L))
                 .thenReturn(Optional.of(horario));
@@ -599,31 +598,35 @@ class HorarioServiceImplTest {
                 () -> horarioService.actualizar(request, 1L)
         )
                 .isInstanceOf(DatoInvalidoException.class)
-                .hasMessageContaining(
-                        "El horario se traslapa"
+                .hasMessage(
+                        "El horario se traslapa con otro del mismo grupo o aula"
                 );
 
-        /*
-         * La excepción ocurre antes de horario.actualizar(),
-         * por lo tanto el horario permanece sin cambios.
-         */
         assertThat(horario.getDiaSemana())
                 .isEqualTo(DiaSemana.LUNES);
+
+        assertThat(horario.getHoraInicio())
+                .isEqualTo("08:00");
+
+        assertThat(horario.getHoraFin())
+                .isEqualTo("10:00");
+
+        assertThat(horario.getGrupo())
+                .isSameAs(grupo);
 
         verify(horarioRepository, never())
                 .saveAndFlush(any());
     }
 
     @Test
-    void actualizar_noDebeConsultarTraslape_cuandoLaHoraFinNoEsPosteriorALaDeInicio() {
+    void actualizar_debeLanzarExcepcion_cuandoLaHoraFinNoEsPosterior() {
 
-        HorarioRequest request =
-                new HorarioRequest(
-                        5L,
-                        "Lunes",
-                        "10:00",
-                        "08:00"
-                );
+        HorarioRequest request = new HorarioRequest(
+                5L,
+                "Lunes",
+                "10:00",
+                "08:00"
+        );
 
         when(horarioRepository.findById(1L))
                 .thenReturn(Optional.of(horario));
@@ -655,41 +658,14 @@ class HorarioServiceImplTest {
     }
 
     @Test
-    void actualizar_debeLanzarExcepcion_cuandoElFormatoDeHoraEsInvalido() {
-
-        HorarioRequest request =
-                new HorarioRequest(
-                        5L,
-                        "Lunes",
-                        "8:00 ",
-                        "10:00"
-                );
-
-        when(horarioRepository.findById(1L))
-                .thenReturn(Optional.of(horario));
-
-        when(grupoRepository.findById(5L))
-                .thenReturn(Optional.of(grupo));
-
-        assertThatThrownBy(
-                () -> horarioService.actualizar(request, 1L)
-        )
-                .isInstanceOf(DatoInvalidoException.class);
-
-        verify(horarioRepository, never())
-                .saveAndFlush(any());
-    }
-
-    @Test
     void actualizar_debeLanzarExcepcion_cuandoElDiaNoExiste() {
 
-        HorarioRequest request =
-                new HorarioRequest(
-                        5L,
-                        "Domingo",
-                        "08:00",
-                        "10:00"
-                );
+        HorarioRequest request = new HorarioRequest(
+                5L,
+                "Domingo",
+                "08:00",
+                "10:00"
+        );
 
         when(horarioRepository.findById(1L))
                 .thenReturn(Optional.of(horario));
@@ -704,19 +680,29 @@ class HorarioServiceImplTest {
                 .hasMessageContaining("Domingo");
 
         verify(horarioRepository, never())
+                .existeTraslape(
+                        any(),
+                        anyString(),
+                        anyString(),
+                        anyString(),
+                        anyLong(),
+                        anyLong(),
+                        anyLong()
+                );
+
+        verify(horarioRepository, never())
                 .saveAndFlush(any());
     }
 
     @Test
     void actualizar_debeLanzarExcepcion_cuandoElHorarioNoExiste() {
 
-        HorarioRequest request =
-                new HorarioRequest(
-                        5L,
-                        "Lunes",
-                        "08:00",
-                        "10:00"
-                );
+        HorarioRequest request = new HorarioRequest(
+                5L,
+                "Lunes",
+                "08:00",
+                "10:00"
+        );
 
         when(horarioRepository.findById(99L))
                 .thenReturn(Optional.empty());
@@ -730,18 +716,18 @@ class HorarioServiceImplTest {
                 );
 
         verifyNoInteractions(grupoRepository);
+        verifyNoInteractions(horarioMapper);
     }
 
     @Test
     void actualizar_debeLanzarExcepcion_cuandoElGrupoNoExiste() {
 
-        HorarioRequest request =
-                new HorarioRequest(
-                        99L,
-                        "Lunes",
-                        "08:00",
-                        "10:00"
-                );
+        HorarioRequest request = new HorarioRequest(
+                99L,
+                "Lunes",
+                "08:00",
+                "10:00"
+        );
 
         when(horarioRepository.findById(1L))
                 .thenReturn(Optional.of(horario));
@@ -759,6 +745,8 @@ class HorarioServiceImplTest {
 
         verify(horarioRepository, never())
                 .saveAndFlush(any());
+
+        verifyNoInteractions(horarioMapper);
     }
 
     // =========================================================
@@ -772,6 +760,9 @@ class HorarioServiceImplTest {
                 .thenReturn(Optional.of(horario));
 
         horarioService.eliminar(1L);
+
+        verify(horarioRepository)
+                .findById(1L);
 
         verify(horarioRepository)
                 .delete(horario);
@@ -789,9 +780,15 @@ class HorarioServiceImplTest {
         assertThatThrownBy(
                 () -> horarioService.eliminar(99L)
         )
-                .isInstanceOf(RecursoNoEncontradoException.class);
+                .isInstanceOf(RecursoNoEncontradoException.class)
+                .hasMessageContaining(
+                        "Horario no encontrado con id: 99"
+                );
 
         verify(horarioRepository, never())
                 .delete(any());
+
+        verify(horarioRepository, never())
+                .flush();
     }
 }

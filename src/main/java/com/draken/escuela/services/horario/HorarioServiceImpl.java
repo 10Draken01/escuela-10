@@ -44,8 +44,8 @@ public class HorarioServiceImpl implements HorarioService{
     @Override
     public HorarioResponse registrar(HorarioRequest request) {
         Grupo grupo = obtenerGrupo(request.idGrupo());
-
-        Horario horario = horarioMapper.requestAEntidad(request, grupo);
+        DiaSemana diaSemana = DiaSemana.obtenerDiaPorDescriptcion(request.dia());
+        Horario horario = horarioMapper.requestAEntidad(request, diaSemana, grupo);
 
         validarHorario(grupo, horario.getDiaSemana(), horario.getHoraInicio(), horario.getHoraFin(), -1L);
 
