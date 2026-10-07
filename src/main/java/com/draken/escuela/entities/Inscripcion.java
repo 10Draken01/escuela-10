@@ -36,8 +36,12 @@ public class Inscripcion {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "ID_GRUPO", nullable = false)
     private Grupo grupo;
+
     @Column(name = "FECHA_INSCRIPCION", nullable = false)
     private LocalDate fechaInscripcion;
+
+    @OneToOne(mappedBy = "inscripcion")
+    private Calificacion calificacion;
 
     public void asignarAlumno(Alumno alumno){
         if(alumno == null)
@@ -51,8 +55,41 @@ public class Inscripcion {
     public void asignarGrupo(Grupo grupo){
         if(grupo == null)
             throw new DatoInvalidoException("El grupo es requerido");
-
+        grupo.agregarInscripcion(this);
         this.grupo = grupo;
+    }
+
+    public void validarDatos(
+            Alumno alumno,
+            Grupo grupo
+    ){
+        if(alumno == null)
+            throw new DatoInvalidoException("El alumno es requerido");
+        if(grupo == null)
+            throw new DatoInvalidoException("El grupo es requerido");
+    }
+
+    public boolean cambioEnDatos(
+            Alumno alumno,
+            Grupo grupo
+    ){
+        validarDatos(alumno, grupo);
+        return !this.alumno.equals(alumno) || !this.grupo.equals(grupo);
+    }
+
+    public void actualizar(
+            Alumno alumno,
+            Grupo grupo
+    ){
+        validarDatos(alumno, grupo);
+        this.alumno.quitarInscripcion(this);
+
+        this.alumno = alumno;
+        this.alumno.agregarInscripcion(this);
+
+        this.grupo.quitarInscripcion(this);
+        this.grupo = grupo;
+        this.grupo.agregarInscripcion(this);
     }
 
     public static Inscripcion crear(){

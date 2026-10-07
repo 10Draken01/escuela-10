@@ -39,8 +39,6 @@ public class AulaServiceImpl implements AulaService{
     @Override
     @Transactional(readOnly = true)
     public AulaResponse obtenerPorId(Long id) {
-        log.info("Obteniendo aula por id: {}", id);
-
         return aulaMapper.entidadAResponse(obtenerAula(id));
     }
 
@@ -53,7 +51,7 @@ public class AulaServiceImpl implements AulaService{
 
         validarDatosUnicos(aula.getNombre());
 
-        aulaRepository.save(aula);
+        aulaRepository.saveAndFlush(aula);
 
         log.info("Aula registrada con id: {}", aula.getId());
 
@@ -76,7 +74,7 @@ public class AulaServiceImpl implements AulaService{
                 aulaConCambios.getCapacidad()
         );
 
-        aulaRepository.save(aula);
+        aulaRepository.saveAndFlush(aula);
 
         log.info("Aula actualizada con id: {}", aula.getId());
 

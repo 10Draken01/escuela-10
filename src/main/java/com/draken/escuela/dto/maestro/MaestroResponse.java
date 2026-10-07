@@ -10,7 +10,7 @@ public record MaestroResponse(
     @Schema(description = "Identificador del maestro", example = "1")
     Long id,
 
-    @Schema(description = "Nombre del maestro", example = "Laura")
+    @Schema(description = "Nombre del maestro", example = "Laura Martínez Martínez")
     String nombre,
 
     @Schema(description = "Email del maestro", example = "laura.martinez@escuela.com")

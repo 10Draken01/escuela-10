@@ -1,6 +1,7 @@
 package com.draken.escuela.mapper;
 
 import com.draken.escuela.dto.datos.DatosCurso;
+import com.draken.escuela.dto.datos.DatosMaestro;
 import com.draken.escuela.dto.maestro.MaestroRequest;
 import com.draken.escuela.dto.maestro.MaestroResponse;
 import com.draken.escuela.entities.Grupo;
@@ -46,10 +47,16 @@ public class MaestroMapper implements CommonMapper<MaestroRequest, MaestroRespon
         );
     }
 
-    private List<DatosCurso> entidadADatosCurso(Maestro entidad){
-        return entidad == null ? List.of()
-                : entidad.getGrupos().stream()
-                .map(Grupo::getCurso)
-                .map(cursoMapper::entidadADatosCurso).toList();
+    public DatosMaestro entidadADatosMaestro(Maestro maestro){
+        return maestro == null ? null
+                : new DatosMaestro(
+                String.join(" ",
+                        maestro.getNombre(),
+                        maestro.getApellidoPaterno(),
+                        maestro.getApellidoMaterno()
+                ),
+                maestro.getEmail(),
+                maestro.getTelefono()
+        );
     }
 }

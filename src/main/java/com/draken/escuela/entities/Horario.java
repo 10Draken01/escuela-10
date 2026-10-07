@@ -1,6 +1,7 @@
 package com.draken.escuela.entities;
 
 import com.draken.escuela.enums.DiaSemana;
+import com.draken.escuela.exceptions.DatoInvalidoException;
 import com.draken.escuela.utils.HoraUtils;
 import com.draken.escuela.utils.StringCustomUtils;
 import jakarta.persistence.*;
@@ -36,24 +37,70 @@ public class Horario {
     private String horaFin;
 
     private static void validarDatos(
+        String diaSemana,
         String horaInicio,
         String horaFin
     ){
+        StringCustomUtils.validarNoVacioNoNull(diaSemana, "El día de la semana es requerido");
+        StringCustomUtils.validarTamanio(diaSemana, 1, 15, "El día de la semana debe tener entre 1 y 15 caracteres");
+
         StringCustomUtils.validarNoVacioNoNull(horaInicio, "La hora de inicio es requerida");
-        HoraUtils.validarHora(horaInicio, "El formato de hora inicio debe ser HH:mm");
+        HoraUtils.validarFormatoHora(horaInicio, "El formato de hora inicio debe ser HH:mm");
+
         StringCustomUtils.validarNoVacioNoNull(horaFin, "La hora de fin es requerida");
-        HoraUtils.validarHora(horaFin, "El formato de hora fin debe ser HH:mm");
+        HoraUtils.validarFormatoHora(horaFin, "El formato de hora fin debe ser HH:mm");
+
+        HoraUtils.validarHoraInicioFin(horaInicio, horaFin, "La hora de inicio debe ser menor a la hora de fin");
+    }
+
+    public String obtenerHorarioCompleto() {
+        return String.format("%s %s - %s", diaSemana, horaInicio, horaFin);
+    }
+
+    public void asignarGrupo(Grupo grupo) {
+        if (grupo == null) {
+            throw new DatoInvalidoException("El grupo no puede ser nulo");
+        }
+        this.grupo = grupo;
+    }
+
+    public boolean cambioEnDatos(
+            String diaSemana,
+            String horaInicio,
+            String horaFin,
+            Grupo grupo
+    ){
+        if(grupo == null)
+            throw new DatoInvalidoException("El grupo es requerido");
+        validarDatos(diaSemana, horaInicio, horaFin);
+        return !this.diaSemana.equals(DiaSemana.obtenerDiaPorDescriptcion(diaSemana)) ||
+                !this.horaInicio.equals(horaInicio) ||
+                !this.horaFin.equals(horaFin) ||
+                !this.grupo.equals(grupo);
+    }
+
+    public void actualizar(
+            String diaSemana,
+            String horaInicio,
+            String horaFin,
+            Grupo grupo
+    ){
+        validarDatos(diaSemana, horaInicio, horaFin);
+        this.diaSemana = DiaSemana.obtenerDiaPorDescriptcion(diaSemana);
+        this.horaInicio = horaInicio;
+        this.horaFin = horaFin;
+        this.grupo = grupo;
     }
 
     public static Horario crear(
-            DiaSemana diaSemana,
+            String diaSemana,
             String horaInicio,
             String horaFin
     ){
-        validarDatos(horaInicio, horaFin);
+        validarDatos(diaSemana, horaInicio, horaFin);
 
       return Horario.builder()
-              .diaSemana(diaSemana)
+              .diaSemana(DiaSemana.obtenerDiaPorDescriptcion(diaSemana))
               .horaInicio(horaInicio)
               .horaFin(horaFin)
               .build();

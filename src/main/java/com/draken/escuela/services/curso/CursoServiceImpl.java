@@ -38,7 +38,6 @@ public class CursoServiceImpl implements CursoService {
     @Override
     @Transactional(readOnly = true)
     public CursoResponse obtenerPorId(Long id) {
-        log.info("Obteniendo curso con id: {}", id);
         return cursoMapper.entidadAResponse(obtenerCurso(id));
     }
 
@@ -53,7 +52,7 @@ public class CursoServiceImpl implements CursoService {
 
         validarDatosUnicos(curso.getNombre());
 
-        cursoRepository.save(curso);
+        cursoRepository.saveAndFlush(curso);
 
         log.info("Curso registrado con id: {}", curso.getId());
 
@@ -79,7 +78,7 @@ public class CursoServiceImpl implements CursoService {
                 cursoConCambios.getCreditos()
         );
 
-        cursoRepository.save(curso);
+        cursoRepository.saveAndFlush(curso);
 
         log.info("Curso actualizado con id: {}", curso.getId());
 

@@ -2,11 +2,17 @@ package com.draken.escuela.utils;
 
 import com.draken.escuela.exceptions.DatoInvalidoException;
 
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+
 
 public class StringCustomUtils {
+    private static final DateTimeFormatter FORMATO_FECHA = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+
     public static void validarTamanio(String texto, Integer min, Integer max, String mensaje){
         validarNoVacioNoNull(texto, mensaje);
-        if ( texto.length() < min || texto.length() > max)
+
+        if ( texto.trim().length() < min || texto.trim().length() > max)
             throw new DatoInvalidoException(mensaje);
     }
     public static void validarNoVacioNoNull(String texto, String mensaje){
@@ -51,5 +57,9 @@ public class StringCustomUtils {
                 .replace("ÿ", "y")
 
                 .trim();
+    }
+
+    public static String localDateAString(LocalDate fecha) {
+        return fecha == null ? null : fecha.format(FORMATO_FECHA);
     }
 }

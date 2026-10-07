@@ -2,11 +2,19 @@ package com.draken.escuela.entities;
 
 import com.draken.escuela.exceptions.DatoInvalidoException;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.NullAndEmptySource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class AulaTest {
+
+    private static final String MSG_NOMBRE = "El nombre es requerido y debe tener entre 5 y 30 caracteres";
+    private static final String MSG_CAPACIDAD = "La capacidad es requerida y debe ser positiva";
+
+    // ---------- crear ----------
 
     @Test
     void crear_debeCrearAula_cuandoDatosSonValidos() {
@@ -16,29 +24,61 @@ class AulaTest {
         // Assert
         assertThat(aula.getNombre()).isEqualTo("Aula 101");
         assertThat(aula.getCapacidad()).isEqualTo(30);
+        assertThat(aula.getGrupos()).isEmpty();
+    }
+
+    @Test
+    void crear_debeAceptarLimitesDeNombre_cuandoTiene5o30Caracteres() {
+        assertThat(Aula.crear("a".repeat(5), 1).getNombre()).hasSize(5);
+        assertThat(Aula.crear("a".repeat(30), 1).getNombre()).hasSize(30);
     }
 
     @Test
     void crear_debeLanzarExcepcion_cuandoElNombreEsMuyCorto() {
-        // Act + Assert: "Ab" tiene menos de 5 caracteres
+        // "Ab" tiene menos de 5 caracteres
         assertThatThrownBy(() -> Aula.crear("Ab", 30))
                 .isInstanceOf(DatoInvalidoException.class)
                 .hasMessageContaining("entre 5 y 30 caracteres");
     }
 
     @Test
+    void crear_debeLanzarExcepcion_cuandoElNombreEsMuyLargo() {
+        assertThatThrownBy(() -> Aula.crear("a".repeat(31), 30))
+                .isInstanceOf(DatoInvalidoException.class)
+                .hasMessage(MSG_NOMBRE);
+    }
+
+    @ParameterizedTest
+    @NullAndEmptySource
+    @ValueSource(strings = {"   "})
+    void crear_debeLanzarExcepcion_cuandoElNombreEsNuloOVacio(String nombre) {
+        assertThatThrownBy(() -> Aula.crear(nombre, 30))
+                .isInstanceOf(DatoInvalidoException.class)
+                .hasMessage(MSG_NOMBRE);
+    }
+
+    @Test
     void crear_debeLanzarExcepcion_cuandoLaCapacidadEsNegativa() {
         assertThatThrownBy(() -> Aula.crear("Aula 101", -5))
                 .isInstanceOf(DatoInvalidoException.class)
-                .hasMessage("La capacidad es requerida y debe ser positiva");
+                .hasMessage(MSG_CAPACIDAD);
+    }
+
+    @Test
+    void crear_debeLanzarExcepcion_cuandoLaCapacidadEsCero() {
+        assertThatThrownBy(() -> Aula.crear("Aula 101", 0))
+                .isInstanceOf(DatoInvalidoException.class)
+                .hasMessage(MSG_CAPACIDAD);
     }
 
     @Test
     void crear_debeLanzarExcepcion_cuandoLaCapacidadEsNula() {
         assertThatThrownBy(() -> Aula.crear("Aula 101", null))
                 .isInstanceOf(DatoInvalidoException.class)
-                .hasMessage("La capacidad es requerida y debe ser positiva");
+                .hasMessage(MSG_CAPACIDAD);
     }
+
+    // ---------- actualizar ----------
 
     @Test
     void actualizar_debeModificarDatos_cuandoTodoEsValido() {
@@ -57,6 +97,15 @@ class AulaTest {
     }
 
     @Test
+    void actualizar_debeRecortarEspacios_enElNombre() {
+        Aula aula = Aula.crear("Aula 101", 30);
+
+        aula.actualizar("   Aula 202   ", 30);
+
+        assertThat(aula.getNombre()).isEqualTo("Aula 202");
+    }
+
+    @Test
     void actualizar_debeLanzarExcepcion_cuandoElNombreEsMuyCorto() {
         // Arrange
         Aula aula = Aula.builder()
@@ -71,6 +120,19 @@ class AulaTest {
     }
 
     @Test
+    void actualizar_noDebeCambiarNada_cuandoLaCapacidadEsInvalida() {
+        Aula aula = Aula.crear("Aula 101", 30);
+
+        assertThatThrownBy(() -> aula.actualizar("Aula 202", 0))
+                .isInstanceOf(DatoInvalidoException.class);
+
+        assertThat(aula.getNombre()).isEqualTo("Aula 101");
+        assertThat(aula.getCapacidad()).isEqualTo(30);
+    }
+
+    // ---------- asignarGrupo / desasignarGrupo ----------
+
+    @Test
     void asignarGrupo_debeLanzarExcepcion_cuandoElGrupoEsNulo() {
         // Arrange
         Aula aula = Aula.crear("Aula 101", 30);
@@ -79,5 +141,27 @@ class AulaTest {
         assertThatThrownBy(() -> aula.asignarGrupo(null))
                 .isInstanceOf(DatoInvalidoException.class)
                 .hasMessage("El grupo es requerido");
+    }
+
+    @Test
+    void asignarGrupo_debeAsociarAmbosLados_cuandoElGrupoEsValido() {
+        Aula aula = Aula.crear("Aula 101", 30);
+        Grupo grupo = Grupo.crear("2026-01");
+
+        aula.asignarGrupo(grupo);
+
+        assertThat(aula.getGrupos()).containsExactly(grupo);
+        assertThat(grupo.getAula()).isSameAs(aula);
+    }
+
+    @Test
+    void desasignarGrupo_debeQuitarElGrupoDeLaLista() {
+        Aula aula = Aula.crear("Aula 101", 30);
+        Grupo grupo = Grupo.crear("2026-01");
+        aula.asignarGrupo(grupo);
+
+        aula.desasignarGrupo(grupo);
+
+        assertThat(aula.getGrupos()).isEmpty();
     }
 }
