@@ -4,6 +4,7 @@ import com.draken.escuela.dto.horario.HorarioRequest;
 import com.draken.escuela.dto.horario.HorarioResponse;
 import com.draken.escuela.entities.Grupo;
 import com.draken.escuela.entities.Horario;
+import com.draken.escuela.enums.DiaSemana;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -15,7 +16,7 @@ public class HorarioMapper implements CommonMapper<HorarioRequest, HorarioRespon
     public Horario requestAEntidad(HorarioRequest request) {
         return request == null ? null
                 : Horario.crear(
-                        request.dia(),
+                        DiaSemana.obtenerDiaPorDescriptcion(request.dia()),
                         request.horaInicio(),
                         request.horaFin()
         );

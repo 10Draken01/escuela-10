@@ -37,13 +37,9 @@ public class Horario {
     private String horaFin;
 
     private static void validarDatos(
-        String diaSemana,
         String horaInicio,
         String horaFin
     ){
-        StringCustomUtils.validarNoVacioNoNull(diaSemana, "El día de la semana es requerido");
-        StringCustomUtils.validarTamanio(diaSemana, 1, 15, "El día de la semana debe tener entre 1 y 15 caracteres");
-
         StringCustomUtils.validarNoVacioNoNull(horaInicio, "La hora de inicio es requerida");
         HoraUtils.validarFormatoHora(horaInicio, "El formato de hora inicio debe ser HH:mm");
 
@@ -65,42 +61,42 @@ public class Horario {
     }
 
     public boolean cambioEnDatos(
-            String diaSemana,
+            DiaSemana diaSemana,
             String horaInicio,
             String horaFin,
             Grupo grupo
     ){
         if(grupo == null)
             throw new DatoInvalidoException("El grupo es requerido");
-        validarDatos(diaSemana, horaInicio, horaFin);
-        return !this.diaSemana.equals(DiaSemana.obtenerDiaPorDescriptcion(diaSemana)) ||
+        validarDatos(horaInicio, horaFin);
+        return !this.diaSemana.equals(diaSemana) ||
                 !this.horaInicio.equals(horaInicio) ||
                 !this.horaFin.equals(horaFin) ||
                 !this.grupo.equals(grupo);
     }
 
     public void actualizar(
-            String diaSemana,
+            DiaSemana diaSemana,
             String horaInicio,
             String horaFin,
             Grupo grupo
     ){
-        validarDatos(diaSemana, horaInicio, horaFin);
-        this.diaSemana = DiaSemana.obtenerDiaPorDescriptcion(diaSemana);
+        validarDatos(horaInicio, horaFin);
+        this.diaSemana = diaSemana;
         this.horaInicio = horaInicio;
         this.horaFin = horaFin;
         this.grupo = grupo;
     }
 
     public static Horario crear(
-            String diaSemana,
+            DiaSemana diaSemana,
             String horaInicio,
             String horaFin
     ){
-        validarDatos(diaSemana, horaInicio, horaFin);
+        validarDatos(horaInicio, horaFin);
 
       return Horario.builder()
-              .diaSemana(DiaSemana.obtenerDiaPorDescriptcion(diaSemana))
+              .diaSemana(diaSemana)
               .horaInicio(horaInicio)
               .horaFin(horaFin)
               .build();

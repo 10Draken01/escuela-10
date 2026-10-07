@@ -44,10 +44,7 @@ public class AulaServiceImpl implements AulaService{
 
     @Override
     public AulaResponse registrar(AulaRequest request) {
-        Aula aula = Aula.crear(
-                request.nombre(),
-                request.capacidad()
-        );
+        Aula aula = aulaMapper.requestAEntidad(request);
 
         validarDatosUnicos(aula.getNombre());
 

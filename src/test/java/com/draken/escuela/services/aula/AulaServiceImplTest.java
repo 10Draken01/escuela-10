@@ -109,40 +109,74 @@ class AulaServiceImplTest {
 
     @Test
     void registrar_debeGuardarYRetornarAula_cuandoElNombreNoExistePreviamente() {
-        // El service pregunta por el nombre ya limpio (trimmed)
         AulaRequest request = new AulaRequest("  Aula 101  ", 30);
-        when(aulaRepository.existsByNombre("Aula 101")).thenReturn(false);
-        when(aulaMapper.entidadAResponse(any(Aula.class))).thenReturn(aulaResponse);
+
+        when(aulaMapper.requestAEntidad(request))
+                .thenReturn(aula);
+
+        when(aulaRepository.existsByNombre("Aula 101"))
+                .thenReturn(false);
+
+        when(aulaMapper.entidadAResponse(aula))
+                .thenReturn(aulaResponse);
 
         AulaResponse resultado = aulaService.registrar(request);
 
-        assertThat(resultado).isEqualTo(aulaResponse);
-        ArgumentCaptor<Aula> captor = ArgumentCaptor.forClass(Aula.class);
-        verify(aulaRepository).saveAndFlush(captor.capture());
-        assertThat(captor.getValue().getNombre()).isEqualTo("Aula 101");
-        assertThat(captor.getValue().getCapacidad()).isEqualTo(30);
+        assertThat(resultado)
+                .isEqualTo(aulaResponse);
+
+        verify(aulaRepository)
+                .existsByNombre("Aula 101");
+
+        verify(aulaRepository)
+                .saveAndFlush(aula);
+
+        assertThat(aula.getNombre())
+                .isEqualTo("Aula 101");
+
+        assertThat(aula.getCapacidad())
+                .isEqualTo(30);
     }
 
     @Test
     void registrar_debeLanzarExcepcion_cuandoYaExisteUnaAulaConEseNombre() {
         AulaRequest request = new AulaRequest("Aula 101", 30);
-        when(aulaRepository.existsByNombre("Aula 101")).thenReturn(true);
 
-        assertThatThrownBy(() -> aulaService.registrar(request))
+        when(aulaMapper.requestAEntidad(request))
+                .thenReturn(aula);
+
+        when(aulaRepository.existsByNombre("Aula 101"))
+                .thenReturn(true);
+
+        assertThatThrownBy(() ->
+                aulaService.registrar(request)
+        )
                 .isInstanceOf(ConflictoException.class)
                 .hasMessageContaining("El nombre del aula ya existe");
 
-        verify(aulaRepository, never()).saveAndFlush(any());
+        verify(aulaRepository, never())
+                .saveAndFlush(any());
     }
 
     @Test
     void registrar_debeLanzarExcepcion_cuandoLosDatosSonInvalidos() {
         AulaRequest request = new AulaRequest("Ab", 30);
 
-        assertThatThrownBy(() -> aulaService.registrar(request))
+        when(aulaMapper.requestAEntidad(request))
+                .thenThrow(new DatoInvalidoException(
+                        "El nombre es requerido y debe tener entre 5 y 30 caracteres"
+                ));
+
+        assertThatThrownBy(() ->
+                aulaService.registrar(request)
+        )
                 .isInstanceOf(DatoInvalidoException.class);
 
-        verifyNoInteractions(aulaRepository, aulaMapper);
+        verify(aulaRepository, never())
+                .existsByNombre(anyString());
+
+        verify(aulaRepository, never())
+                .saveAndFlush(any());
     }
 
     // ---------- actualizar() ----------

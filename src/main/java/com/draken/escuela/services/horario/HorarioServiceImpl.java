@@ -6,6 +6,7 @@ import com.draken.escuela.entities.Grupo;
 import com.draken.escuela.entities.Horario;
 import com.draken.escuela.enums.DiaSemana;
 import com.draken.escuela.exceptions.ConflictoException;
+import com.draken.escuela.exceptions.DatoInvalidoException;
 import com.draken.escuela.exceptions.EntidadRelacionadaException;
 import com.draken.escuela.mapper.HorarioMapper;
 import com.draken.escuela.repositories.GrupoRepository;
@@ -43,11 +44,11 @@ public class HorarioServiceImpl implements HorarioService{
     @Override
     public HorarioResponse registrar(HorarioRequest request) {
         Grupo grupo = obtenerGrupo(request.idGrupo());
-        DiaSemana dia = DiaSemana.obtenerDiaPorDescriptcion(request.dia());
-
-        validarHorario(grupo, dia, request.horaInicio(), request.horaFin(), -1L);
 
         Horario horario = horarioMapper.requestAEntidad(request, grupo);
+
+        validarHorario(grupo, horario.getDiaSemana(), horario.getHoraInicio(), horario.getHoraFin(), -1L);
+
         horarioRepository.saveAndFlush(horario);
         log.info("Horario registrado con id: {}", horario.getId());
         return horarioMapper.entidadAResponse(horario);
@@ -59,9 +60,9 @@ public class HorarioServiceImpl implements HorarioService{
         Grupo grupo = obtenerGrupo(request.idGrupo());
         DiaSemana dia = DiaSemana.obtenerDiaPorDescriptcion(request.dia());
 
-        if (horario.cambioEnDatos(request.dia(), request.horaInicio(), request.horaFin(), grupo)) {
+        if (horario.cambioEnDatos(dia, request.horaInicio(), request.horaFin(), grupo)) {
             validarHorario(grupo, dia, request.horaInicio(), request.horaFin(), id);
-            horario.actualizar(request.dia(), request.horaInicio(), request.horaFin(), grupo);
+            horario.actualizar(dia, request.horaInicio(), request.horaFin(), grupo);
             horarioRepository.saveAndFlush(horario);
             log.info("Horario actualizado con id: {}", id);
         }
@@ -101,6 +102,6 @@ public class HorarioServiceImpl implements HorarioService{
     ) {
         if (horarioRepository.existeTraslape(dia, horaInicio, horaFin,
                 grupo.getPeriodo(), grupo.getId(), grupo.getAula().getId(), idExcluir))
-            throw new EntidadRelacionadaException("El horario se traslapa con otro del mismo grupo o aula");
+            throw new DatoInvalidoException("El horario se traslapa con otro del mismo grupo o aula");
     }
 }
